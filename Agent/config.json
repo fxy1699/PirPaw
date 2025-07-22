@@ -11,8 +11,11 @@
       "qwen_api_key": "",
       "model": "qwen-plus",
       "enable_thinking": true,
-      "max_conversation_history": 10,
-      "personality": "可爱的桌面宠物助手"
+      "max_tokens": 2000,
+      "max_conversation_history": 20,
+      "max_exec_steps": 10,
+      "personality": "可爱的桌面宠物助手",
+      "save_conversation_history": false
     },
     "vision": {
       "auto_capture": false,

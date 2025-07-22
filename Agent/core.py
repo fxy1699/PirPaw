@@ -74,23 +74,28 @@ class AgentCore:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)
         except Exception as e:
             print(f"❌ 配置文件保存失败: {e}")
-    
+
     def initialize_modules(self):
         """初始化所有模块"""
         # 自动发现模块
         discovered_modules = auto_discover_modules()
-        
+
         # 根据配置启用/禁用模块
         enabled_modules = self.config.get("enabled_modules", [])
         module_configs = self.config.get("module_configs", {})
-        
+
         for module in discovered_modules:
             # 检查模块是否在启用列表中
             module_key = module.__class__.__name__.lower().replace('module', '')
-            
+
             if module_key in enabled_modules:
                 # 获取模块特定配置
                 module_config = module_configs.get(module_key, {})
+                
+                # 如果是Chat模块，设置AgentCore引用以支持跨模块调用
+                if hasattr(module, 'set_agent_core'):
+                    module.set_agent_core(self)
+                
                 module.setup(module_config)
                 self.modules.append(module)
             else:
