@@ -261,29 +261,41 @@ class ChatModule(BaseModule):
         
         # 工具相关关键词 - 包含新集成的工具功能
         tool_keywords = [
-            # 原有工具
-            '时间', '屏幕', '截图', '坐姿', '姿态', '追踪', 
-            '统计', '系统', 'CPU', '内存', '性能',
-            # 新集成工具
+            # 原有工具（这些由专门模块处理，Chat模块应避免冲突）
+            '时间', '屏幕', '截图', '坐姿', '姿态', 
+            '系统', 'CPU', '内存', '性能',
+            # 新集成工具（Chat模块直接处理）
             '搜索', '查找', '最新', '新闻', '资讯', '信息',  # 网络搜索
             '天气', '温度', '下雨', '晴天', '预报', '气温',  # 天气查询
             '画', '生成图', '创作', '图像', '绘画', '画图',  # 图像生成
             '文档', '文件', 'pdf', 'word', '解析', '阅读'   # 文档解析
         ]
         
+        # 专门模块处理的关键词（Chat模块应该避免直接处理）
+        specialized_keywords = [
+            '追踪', '统计', '使用时长', '应用统计', '应用时间',  # Tracker模块处理
+            '查看应用', '应用使用', '时间统计', '使用报告'      # Tracker模块处理
+        ]
+        
         message_lower = message.lower()
         
-        # 如果包含任何触发关键词
+        # 检查是否包含专门模块的关键词
+        has_specialized = any(keyword in message_lower for keyword in specialized_keywords)
+        
+        # 如果包含基础对话或Chat模块专属工具关键词
         if any(keyword in message_lower for keyword in chat_keywords + tool_keywords):
+            # 如果同时包含专门模块关键词，则优先级较低
+            if has_specialized:
+                return False  # 让专门模块处理
             return True
         
-        # 如果是问句（包含疑问词）
+        # 如果是问句（包含疑问词），但不包含专门模块关键词
         question_words = ['何时', '何地', '何人', '如何', '是否', '能否', '会不会']
-        if any(word in message for word in question_words):
+        if any(word in message for word in question_words) and not has_specialized:
             return True
         
-        # 如果消息较短且可能是casual对话
-        if len(message.strip()) <= 20 and not any(char.isdigit() for char in message):
+        # 如果消息较短且可能是casual对话，但不包含专门模块关键词
+        if len(message.strip()) <= 20 and not any(char.isdigit() for char in message) and not has_specialized:
             return True
         
         return False
@@ -573,6 +585,15 @@ class ChatModule(BaseModule):
         else:
             tools_desc += "🌤️ **天气查询** - 通过Tools模块提供基础天气信息\n"
             usage_tips += "- 天气相关问题时，可以询问基础天气信息\n"
+        
+        # 系统其他能力（由专门模块提供）
+        tools_desc += "\n🔗 **系统协作能力**：\n"
+        tools_desc += "📊 **应用追踪** - 跨平台应用使用时间统计（Tracker模块）\n"
+        tools_desc += "💻 **系统监控** - CPU、内存、性能实时监控（Tools模块）\n"
+        tools_desc += "👁️ **屏幕分析** - 截图和内容分析（Vision模块）\n"
+        tools_desc += "📷 **姿态检测** - 健康监控和提醒（Camera模块）\n"
+        
+        usage_tips += "- 其他专门功能时，与相应模块协作提供服务\n"
         
         system_message = f"""你是DyberPet桌面宠物小柏，一个可爱、聪明的AI助手。{time_greeting}
 
