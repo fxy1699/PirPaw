@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -32,6 +32,12 @@
       "enabled_tools": ["time", "weather", "system_info", "file_operations"],
       "weather_api_key": "",
       "default_city": "北京"
+    },
+    "tracker": {
+      "data_file": "data/app_usage.json",
+      "tracking_interval": 5,
+      "auto_start": false,
+      "show_detailed_windows": true
     }
   }
 } 
