@@ -2,7 +2,7 @@ from Agent.base_module import BaseModule
 import json
 import time
 from datetime import datetime
-from .tools import DyberPetTools, QwenAgentFunction
+from .tools import DyberPetTools
 
 
 class ChatModule(BaseModule):
@@ -60,11 +60,34 @@ class ChatModule(BaseModule):
             # 初始化工具系统
             self._setup_tools()
             
-            # 创建Agent实例
+            # 集成Qwen-Agent内置工具（去掉code_interpreter）
+            qwen_tools = [
+                'image_gen',       # 🎨 图像生成（无需API key）
+                'doc_parser'       # 📄 文档解析（无需API key）
+            ]
+            
+            # 检查可选API功能
+            import os
+            
+            # 网络搜索功能
+            if os.getenv('SERPER_API_KEY'):
+                qwen_tools.append('web_search')  # 🌐 网络搜索
+                print("🌐 Serper搜索API已启用")
+            else:
+                print("💡 未配置SERPER_API_KEY，网络搜索功能暂不可用")
+            
+            # 高德天气功能  
+            if os.getenv('AMAP_TOKEN'):
+                qwen_tools.append('amap_weather')  # 🌤️ 天气查询
+                print("🌤️ 高德天气API已启用")
+            else:
+                print("💡 未配置AMAP_TOKEN，天气功能将使用Tools模块")
+            
+            # 创建Agent实例，集成内置工具
             self.agent = Assistant(
                 llm=llm_cfg,
-                system_message=system_message,
-                function_list=self.tools.get_function_list() if self.tools else [],
+                system_message=self._build_enhanced_system_message(),
+                function_list=qwen_tools,
                 files=[],
                 name="小柏 - DyberPet Assistant"
             )
@@ -91,13 +114,65 @@ class ChatModule(BaseModule):
         if self.agent_core_ref:
             self.tools = DyberPetTools(self.agent_core_ref)
         else:
-            print("⚠️ 未设置AgentCore引用，工具功能不可用")
+            # 在setup阶段可能还没有设置AgentCore引用，先创建空的工具列表
+            self.tools = None
+            print("💡 工具系统将在AgentCore设置后初始化")
     
     def set_agent_core(self, agent_core):
         """设置AgentCore引用，用于跨模块调用"""
         self.agent_core_ref = agent_core
-        if self.tools:
-            self.tools.agent_core = agent_core
+        
+        # 重新初始化工具系统
+        if self.enabled:
+            self.tools = DyberPetTools(agent_core)
+            
+            # 如果Agent已经创建，重新注册工具
+            if self.agent:
+                try:
+                    # 重新创建Agent实例以包含工具
+                    from qwen_agent.agents import Assistant
+                    
+                    llm_cfg = {
+                        'model': self.config.get('model', 'qwen-plus'),
+                        'model_type': 'qwen_dashscope', 
+                        'api_key': self.config.get('qwen_api_key', ''),
+                        'generate_cfg': {
+                            'top_p': 0.8,
+                            'temperature': 0.7,
+                            'max_tokens': self.config.get('max_tokens', 2000),
+                            'enable_thinking': self.config.get('enable_thinking', True)
+                        }
+                    }
+                    
+                    system_message = self._build_system_message()
+                    
+                    # 集成Qwen-Agent内置工具
+                    qwen_tools = [
+                        'image_gen',       # 🎨 图像生成
+                        'doc_parser'       # 📄 文档解析
+                    ]
+                    
+                    # 检查可选API功能
+                    import os
+                    if os.getenv('SERPER_API_KEY'):
+                        qwen_tools.append('web_search')  # 🌐 网络搜索
+                    if os.getenv('AMAP_TOKEN'):
+                        qwen_tools.append('amap_weather')  # 🌤️ 天气查询
+                    
+                    self.agent = Assistant(
+                        llm=llm_cfg,
+                        system_message=self._build_enhanced_system_message(),
+                        function_list=qwen_tools,
+                        files=[],
+                        name="小柏 - DyberPet Assistant"
+                    )
+                    
+                    print(f"🔧 {self.name} 工具系统已重新初始化，包含 {len(self.tools.tools)} 个工具")
+                    
+                except Exception as e:
+                    print(f"⚠️ 重新初始化工具失败: {e}")
+            
+            print(f"✅ {self.name} AgentCore引用已设置")
     
     def _build_system_message(self):
         """构建个性化系统指令"""
@@ -161,7 +236,7 @@ class ChatModule(BaseModule):
         self.last_interaction_time = datetime.now()
         self.user_profile['interaction_count'] += 1
         
-        # 判断是否是对话请求 - 扩展触发条件
+        # 判断是否是对话请求 - 扩展触发条件包含新工具
         if not self._should_handle_message(message):
             return None
         
@@ -184,10 +259,16 @@ class ChatModule(BaseModule):
             '?', '？', '吗', '呢', '呀', '吧'
         ]
         
-        # 工具相关关键词 - 如果用户询问相关功能，也应该由Chat模块处理
+        # 工具相关关键词 - 包含新集成的工具功能
         tool_keywords = [
-            '时间', '天气', '屏幕', '截图', '坐姿', '姿态', '追踪', 
-            '统计', '系统', 'CPU', '内存', '性能'
+            # 原有工具
+            '时间', '屏幕', '截图', '坐姿', '姿态', '追踪', 
+            '统计', '系统', 'CPU', '内存', '性能',
+            # 新集成工具
+            '搜索', '查找', '最新', '新闻', '资讯', '信息',  # 网络搜索
+            '天气', '温度', '下雨', '晴天', '预报', '气温',  # 天气查询
+            '画', '生成图', '创作', '图像', '绘画', '画图',  # 图像生成
+            '文档', '文件', 'pdf', 'word', '解析', '阅读'   # 文档解析
         ]
         
         message_lower = message.lower()
@@ -218,18 +299,33 @@ class ChatModule(BaseModule):
             'content': enhanced_message
         })
         
-        # 保持对话历史长度
+        # 保持对话历史长度，确保格式正确
         max_history = self.config.get('max_conversation_history', 20)
         if len(self.conversation_history) > max_history * 2:
-            # 保留最近的对话，但保留第一条系统消息
-            system_msgs = [msg for msg in self.conversation_history if msg.get('role') == 'system']
-            recent_msgs = self.conversation_history[-(max_history*2-len(system_msgs)):]
-            self.conversation_history = system_msgs + recent_msgs
+            # 只保留最近的用户和助手消息对话，确保以用户消息开始
+            user_assistant_msgs = [msg for msg in self.conversation_history 
+                                 if msg.get('role') in ['user', 'assistant']]
+            recent_msgs = user_assistant_msgs[-max_history*2:]
+            
+            # 确保消息列表以用户消息开始
+            if recent_msgs and recent_msgs[0].get('role') != 'user':
+                # 如果第一条不是用户消息，找到第一条用户消息开始
+                user_start_idx = 0
+                for i, msg in enumerate(recent_msgs):
+                    if msg.get('role') == 'user':
+                        user_start_idx = i
+                        break
+                recent_msgs = recent_msgs[user_start_idx:]
+            
+            self.conversation_history = recent_msgs
+        
+        # 清理对话历史格式
+        clean_history = self._clean_conversation_history()
         
         # 调用Agent
         response = []
         for chunk in self.agent.run(
-            messages=self.conversation_history,
+            messages=clean_history,
             lang='zh',
             max_exec_steps=self.config.get('max_exec_steps', 10)
         ):
@@ -239,8 +335,11 @@ class ChatModule(BaseModule):
             # 获取最后一条助手回复
             assistant_response = response[-1].get('content', '抱歉，我没有理解您的问题')
             
-            # 添加到对话历史
-            self.conversation_history.extend(response)
+            # 只添加助手的回复到对话历史，避免混入系统消息
+            self.conversation_history.append({
+                'role': 'assistant',
+                'content': assistant_response
+            })
             
             # 后处理响应
             formatted_response = self._format_response(assistant_response)
@@ -407,3 +506,82 @@ class ChatModule(BaseModule):
             
         except Exception as e:
             print(f"❌ 保存对话历史失败: {e}") 
+
+    def _clean_conversation_history(self):
+        """清理对话历史，确保格式符合API要求"""
+        # 只保留用户和助手消息
+        cleaned_history = [msg for msg in self.conversation_history 
+                          if msg.get('role') in ['user', 'assistant']]
+        
+        # 确保以用户消息开始
+        if cleaned_history and cleaned_history[0].get('role') != 'user':
+            # 找到第一条用户消息
+            user_start_idx = None
+            for i, msg in enumerate(cleaned_history):
+                if msg.get('role') == 'user':
+                    user_start_idx = i
+                    break
+            
+            if user_start_idx is not None:
+                cleaned_history = cleaned_history[user_start_idx:]
+            else:
+                # 如果没有用户消息，清空历史
+                cleaned_history = []
+        
+        # 确保用户和助手消息交替出现
+        final_history = []
+        expected_role = 'user'
+        
+        for msg in cleaned_history:
+            if msg.get('role') == expected_role:
+                final_history.append(msg)
+                expected_role = 'assistant' if expected_role == 'user' else 'user'
+        
+        return final_history 
+
+    def _build_enhanced_system_message(self):
+        """构建包含工具描述的系统消息"""
+        current_time = datetime.now()
+        time_greeting = self._get_time_greeting(current_time)
+        
+        # 检查可用工具
+        import os
+        has_serper = os.getenv('SERPER_API_KEY') is not None
+        has_amap = os.getenv('AMAP_TOKEN') is not None
+        
+        # 动态构建工具描述
+        tools_desc = "🌟 你现在拥有强大的工具能力：\n"
+        usage_tips = "💡 **使用建议**：\n"
+        
+        # 图像生成（总是可用）
+        tools_desc += "🎨 **图像生成** - 根据文字描述创作精美的AI画作\n"
+        usage_tips += "- 用户要求绘画创作时，使用图像生成工具\n"
+        
+        # 文档解析（总是可用）
+        tools_desc += "📄 **文档解析** - 阅读和分析PDF、Word等各种文档\n"
+        usage_tips += "- 需要处理文档时，利用文档解析能力\n"
+        
+        # 网络搜索（需要API）
+        if has_serper:
+            tools_desc += "🌐 **网络搜索** - 获取最新信息、新闻资讯、实时数据\n"
+            usage_tips += "- 用户询问信息时，主动使用网络搜索获取最新内容\n"
+        
+        # 天气查询（有API用高德，否则用Tools模块）
+        if has_amap:
+            tools_desc += "🌤️ **天气查询** - 提供准确的天气预报和气象信息\n"
+            usage_tips += "- 天气相关问题时，调用天气工具提供准确预报\n"
+        else:
+            tools_desc += "🌤️ **天气查询** - 通过Tools模块提供基础天气信息\n"
+            usage_tips += "- 天气相关问题时，可以询问基础天气信息\n"
+        
+        system_message = f"""你是DyberPet桌面宠物小柏，一个可爱、聪明的AI助手。{time_greeting}
+
+{tools_desc}
+{usage_tips}
+
+🎭 **个性特点**：
+请用活泼可爱的语气与用户交流，适时使用emoji表情。当需要使用工具时，要主动告诉用户你正在调用相应功能来帮助他们。
+
+记住：你是一个贴心的桌面伙伴，既能提供专业服务，又要保持可爱的宠物性格！"""
+
+        return system_message 

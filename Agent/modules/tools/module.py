@@ -84,30 +84,27 @@ class ToolsModule(BaseModule):
             return f"⏰ 获取时间失败: {e}"
     
     def get_weather_info(self, message):
-        """获取天气信息"""
+        """获取天气信息 - 提示用户使用Chat模块的天气功能"""
         try:
-            # 这里应该调用真实的天气API
-            # 目前返回模拟数据
+            # 从消息中提取城市名
             city = self.config.get('default_city', '北京')
-            
-            # 从消息中提取城市名（简单实现）
             cities = ['北京', '上海', '广州', '深圳', '杭州', '成都', '西安', '武汉']
             for c in cities:
                 if c in message:
                     city = c
                     break
             
-            weather_info = f"🌤️ {city}天气:\n"
-            weather_info += "• 温度: 22°C\n"
-            weather_info += "• 天气: 晴转多云\n"
-            weather_info += "• 湿度: 65%\n"
-            weather_info += "• 风力: 3级\n"
-            weather_info += "💡 今天天气不错，适合出行"
+            # 提示用户使用更准确的天气功能
+            weather_info = f"🌤️ {city}天气查询:\n"
+            weather_info += "💡 为了获取最准确的天气信息，建议您:\n"
+            weather_info += "• 使用Chat模块询问天气（如: '北京天气怎么样？'）\n"
+            weather_info += "• Chat模块已集成高德天气API，提供实时准确数据\n"
+            weather_info += "\n🔄 工具模块将保留基础功能，Chat模块提供增强体验"
             
             return weather_info
             
         except Exception as e:
-            return f"🌤️ 获取天气信息失败: {e}"
+            return f"🌤️ 天气查询失败: {e}"
     
     def get_system_info(self, message):
         """获取系统信息"""

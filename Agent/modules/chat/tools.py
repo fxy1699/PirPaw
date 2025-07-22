@@ -116,17 +116,62 @@ class DyberPetTools:
         ]
     
     def get_function_list(self):
-        """返回工具函数列表，供Qwen-Agent使用"""
-        function_list = []
+        """返回符合Qwen-Agent格式的工具函数列表"""
+        # 创建具体的工具函数，避免闭包问题
+        functions = []
         
-        for tool in self.tools:
-            function_list.append({
-                'name': tool['name'],
-                'description': tool['description'],
-                'parameters': tool['parameters']
-            })
+        # 时间工具
+        def check_time():
+            """获取当前时间和日期信息"""
+            return self._call_time_tool()
         
-        return function_list
+        # 天气工具  
+        def get_weather(city: str = "北京"):
+            """获取指定城市的天气信息"""
+            return self._call_weather_tool(city)
+        
+        # 系统监控工具
+        def check_system_status(detail_level: str = "basic"):
+            """检查系统性能状态，包括CPU、内存使用情况"""
+            return self._call_system_tool(detail_level)
+        
+        # 屏幕分析工具
+        def capture_screen(analysis_type: str = "general"):
+            """截取用户屏幕并分析内容，可以理解当前显示的信息"""
+            return self._call_vision_tool(analysis_type)
+        
+        # 姿态检测工具
+        def check_posture():
+            """检查用户当前坐姿和健康状态"""
+            return self._call_camera_tool()
+        
+        # 应用使用统计工具
+        def get_app_usage(period: str = "today"):
+            """获取应用使用时长统计信息"""
+            return self._call_tracker_tool(period)
+        
+        # 开始追踪工具
+        def start_app_tracking():
+            """开始应用使用时长追踪"""
+            return self._call_tracker_start()
+        
+        # 停止追踪工具
+        def stop_app_tracking():
+            """停止应用使用时长追踪"""
+            return self._call_tracker_stop()
+        
+        functions = [
+            check_time,
+            get_weather, 
+            check_system_status,
+            capture_screen,
+            check_posture,
+            get_app_usage,
+            start_app_tracking,
+            stop_app_tracking
+        ]
+        
+        return functions
     
     def call_function(self, function_name: str, arguments: Dict[str, Any]) -> str:
         """执行函数调用"""
@@ -227,38 +272,4 @@ class DyberPetTools:
     def _call_tracker_stop(self) -> str:
         """停止应用追踪"""
         responses = self.agent_core.process_message("停止应用追踪")
-        return responses[0] if responses else "停止追踪失败"
-
-
-class QwenAgentFunction:
-    """Qwen-Agent工具函数包装器"""
-    
-    def __init__(self, tools: DyberPetTools):
-        self.tools = tools
-    
-    def __call__(self, function_name: str, arguments: str) -> str:
-        """
-        Qwen-Agent调用的入口点
-        
-        Args:
-            function_name: 函数名
-            arguments: JSON格式的参数字符串
-        
-        Returns:
-            执行结果字符串
-        """
-        try:
-            # 解析参数
-            if isinstance(arguments, str):
-                args_dict = json.loads(arguments) if arguments.strip() else {}
-            else:
-                args_dict = arguments
-            
-            # 调用对应函数
-            result = self.tools.call_function(function_name, args_dict)
-            return result
-            
-        except json.JSONDecodeError as e:
-            return f"❌ 参数解析失败: {e}"
-        except Exception as e:
-            return f"❌ 函数调用失败: {e}" 
+        return responses[0] if responses else "停止追踪失败" 

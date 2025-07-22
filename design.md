@@ -150,37 +150,99 @@ class AgentCore:
 
 ### 5. **对话模块 (ChatModule)**
 
-#### 5.1 基于Qwen-Agent完整实现
+#### 5.1 基于Qwen-Agent + 内置工具实现
 ```python
 class ChatModule(BaseModule):
     name = "智能对话"
     author = "开发者A"
     
     def setup(self, config):
-        """初始化Qwen-Agent"""
+        """初始化Qwen-Agent with 内置工具"""
         from qwen_agent.agents import Assistant
         
+        # 集成Qwen-Agent内置工具
+        builtin_tools = [
+            'code_interpreter',  # 🐍 代码执行
+            'web_search',       # 🌐 网络搜索
+            'amap_weather',     # 🌤️ 天气查询  
+            'image_gen',        # 🎨 图像生成
+            'doc_parser'        # 📄 文档解析
+        ]
+        
+        # MCP工具服务器配置
+        mcp_servers = {
+            "mcpServers": {
+                "time": {
+                    "command": "uvx",
+                    "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"]
+                },
+                "filesystem": {
+                    "command": "npx", 
+                    "args": ["-y", "@modelcontextprotocol/server-filesystem"]
+                }
+            }
+        }
+        
         self.agent = Assistant(
-            llm={'model': 'qwen-plus', 'api_key': config['qwen_api_key']},
-            system_message="你是可爱的桌面宠物小柏...",
-            function_list=[],  # 可注册自定义工具
+            llm={
+                'model': 'qwen-plus', 
+                'model_type': 'qwen_dashscope',
+                'api_key': config['qwen_api_key']
+            },
+            system_message="""你是DyberPet桌面宠物小柏，一个可爱、聪明的AI助手。
+
+你现在拥有强大的工具能力：
+🐍 代码执行：可以运行Python代码，进行数据分析和可视化
+🌐 网络搜索：获取最新信息和资讯  
+🌤️ 天气查询：提供准确的天气预报
+🎨 图像生成：根据描述创作AI画作
+📄 文档解析：阅读和分析PDF/Word文档
+⏰ 时间服务：精确的时间和日期信息
+📁 文件操作：安全的文件管理功能
+
+请用活泼可爱的语气与用户交流，适时使用emoji表情。当需要使用工具时，请主动调用相应功能帮助用户。""",
+            function_list=builtin_tools + [mcp_servers],
             files=[]
         )
     
     def handle_message(self, message, context=None):
-        if any(keyword in message for keyword in ['聊天', '对话', '?', '你好']):
-            # 调用Qwen-Agent处理
+        # 扩展触发词，涵盖各种工具功能
+        trigger_keywords = [
+            # 基础对话
+            '聊天', '对话', '?', '？', '你好', '嗨', '助手',
+            # 代码相关
+            '代码', '编程', '计算', '分析', '画图', 'python',
+            # 搜索相关  
+            '搜索', '查找', '最新', '新闻', '资讯',
+            # 天气相关
+            '天气', '温度', '下雨', '晴天', '预报',
+            # 图像相关
+            '画', '生成图', '创作', '图像', '绘画',
+            # 文档相关
+            '文档', '文件', 'pdf', '解析', '阅读',
+            # 时间相关
+            '时间', '日期', '几点', '现在'
+        ]
+        
+        if any(keyword in message.lower() for keyword in trigger_keywords):
+            # 调用Qwen-Agent处理（包含自动工具调用）
             response = self.agent.run([{'role': 'user', 'content': message}])
             return f"🤖 {response[-1]['content']}"
+        
         return None
 ```
 
-#### 5.2 功能特性
-- ✅ **多轮对话**：保持对话上下文
-- ✅ **深度思考**：启用thinking模式
-- ✅ **工具调用**：可扩展外部工具
-- ✅ **代码执行**：内置代码解释器
-- ✅ **个性化**：宠物专属的对话风格
+#### 5.2 功能特性升级
+- ✅ **多轮对话**：保持对话上下文和记忆
+- ✅ **深度思考**：启用thinking模式推理
+- 🆕 **代码执行**：Qwen-Agent `code_interpreter`，支持Python、数据分析、可视化
+- 🆕 **实时搜索**：Qwen-Agent `web_search`，获取最新信息和资讯
+- 🆕 **天气服务**：Qwen-Agent `amap_weather`，替换模拟数据，高德API
+- 🆕 **AI绘画**：Qwen-Agent `image_gen`，根据文本描述生成图像
+- 🆕 **文档理解**：Qwen-Agent `doc_parser`，解析PDF/Word文档
+- 🆕 **时间服务**：MCP `time`服务器，精确时间和时区支持
+- 🆕 **文件操作**：MCP `filesystem`服务器，安全的文件管理
+- ✅ **个性化**：桌面宠物专属的可爱对话风格
 
 ### 6. **视觉模块 (VisionModule)**
 
@@ -239,30 +301,124 @@ class CameraModule(BaseModule):
 - 😴 **疲劳检测**：识别眨眼频率等
 - 🤲 **手势识别**：支持手势控制（可选）
 
-### 8. **工具模块 (ToolsModule)**
+### 8. **工具模块架构设计**
 
-#### 8.1 系统工具实现
+#### 8.1 Qwen-Agent内置工具清单
+
+Qwen-Agent SDK (v0.0.27) 提供了丰富的内置工具，我们优先使用这些成熟的工具：
+
+| 工具名 | 功能描述 | 使用优先级 | 集成状态 |
+|--------|----------|-----------|----------|
+| **🐍 code_interpreter** | 代码解释器，执行Python代码 | ⭐⭐⭐ | 🔄 待集成 |
+| **🌐 web_search** | 网络搜索，获取实时信息 | ⭐⭐⭐ | 🔄 待集成 |
+| **🌤️ amap_weather** | 高德天气API，替换模拟数据 | ⭐⭐⭐ | 🔄 替换现有 |
+| **🎨 image_gen** | AI图像生成服务 | ⭐⭐ | 📋 计划中 |
+| **📄 doc_parser** | PDF/Word文档解析 | ⭐⭐ | 📋 计划中 |
+| **🌐 web_extractor** | 网页内容提取 | ⭐⭐ | 📋 计划中 |
+| **🐍 python_executor** | 沙盒Python执行器 | ⭐ | 📋 备选 |
+| **🔍 retrieval** | RAG检索和问答 | ⭐ | 📋 备选 |
+| **📝 simple_doc_parser** | 轻量级文档处理 | ⭐ | 📋 备选 |
+| **📚 extract_doc_vocabulary** | 文档词汇提取 | ⭐ | 📋 备选 |
+| **💾 storage** | 数据持久化管理 | ⭐ | 📋 备选 |
+| **🔧 mcp_manager** | MCP协议支持 | ⭐ | 📋 备选 |
+
+#### 8.2 MCP (Model Context Protocol) 生态
+
+Qwen-Agent原生支持MCP，可以接入第三方工具服务器：
+
+```python
+# MCP配置示例
+mcp_tools = {
+    "mcpServers": {
+        "time": {  # 时间服务
+            "command": "uvx",
+            "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"]
+        },
+        "filesystem": {  # 文件系统操作
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/allowed/path"]
+        },
+        "sqlite": {  # 数据库操作
+            "command": "uvx",
+            "args": ["mcp-server-sqlite", "--db-path", "app.db"]
+        },
+        "fetch": {  # 网络请求
+            "command": "uvx", 
+            "args": ["mcp-server-fetch"]
+        }
+    }
+}
+```
+
+#### 8.3 混合工具策略
+
+**优先级策略**：
+1. **直接使用** Qwen-Agent内置工具（高质量、免维护）
+2. **MCP集成** 第三方工具服务器（生态丰富）
+3. **自定义实现** 专有功能（如应用追踪、姿态检测）
+
 ```python
 class ToolsModule(BaseModule):
-    name = "系统工具"
+    name = "混合工具"
     author = "开发者D"
     
+    def setup(self, config):
+        """集成Qwen-Agent内置工具"""
+        self.qwen_tools = [
+            'code_interpreter',  # 代码执行
+            'web_search',       # 网络搜索  
+            'amap_weather',     # 天气查询
+            'image_gen',        # 图像生成
+            'doc_parser'        # 文档解析
+        ]
+        
+        # MCP工具服务器
+        self.mcp_config = {
+            "mcpServers": {
+                "time": {"command": "uvx", "args": ["mcp-server-time"]},
+                "filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}
+            }
+        }
+        
+        # 自定义工具（Qwen-Agent未提供的）
+        self.custom_tools = {
+            'system_monitor': self.get_system_info,      # 系统监控
+            'app_tracker': self.get_app_usage,           # 应用追踪
+            'posture_check': self.check_posture,         # 姿态检测
+            'screen_analysis': self.analyze_screen       # 屏幕分析
+        }
+    
     def handle_message(self, message, context=None):
-        if '时间' in message:
-            return self.get_current_time()
-        elif '天气' in message:
-            return self.get_weather_info(message)
-        elif '系统' in message:
-            return self.get_system_info(message)
+        # 1. 优先尝试Qwen-Agent工具
+        if self.should_use_qwen_tools(message):
+            return self.call_qwen_agent_tool(message)
+        
+        # 2. 尝试MCP工具
+        elif self.should_use_mcp(message):
+            return self.call_mcp_tool(message)
+        
+        # 3. 最后使用自定义工具
+        elif self.should_use_custom(message):
+            return self.call_custom_tool(message)
+            
         return None
 ```
 
-#### 8.2 功能特性
-- ⏰ **时间查询**：当前时间、日期、星期
-- 🌤️ **天气信息**：实时天气查询
-- 💻 **系统监控**：CPU、内存、磁盘使用率
-- 📁 **文件操作**：文件搜索、管理
-- 🔧 **快捷工具**：计算器、单位转换等
+#### 8.4 功能分布重新规划
+
+| 功能类别 | 实现方式 | 工具选择 | 优势 |
+|----------|----------|----------|------|
+| **代码执行** | Qwen-Agent | `code_interpreter` | 沙盒安全、功能完整 |
+| **网络搜索** | Qwen-Agent | `web_search` | 实时信息、免API申请 |
+| **天气查询** | Qwen-Agent | `amap_weather` | 替换模拟数据、高德API |
+| **图像生成** | Qwen-Agent | `image_gen` | AI绘画、免费使用 |
+| **文档解析** | Qwen-Agent | `doc_parser` | 支持多格式、OCR能力 |
+| **时间查询** | MCP | `mcp-server-time` | 时区支持、标准协议 |
+| **文件操作** | MCP | `mcp-server-filesystem` | 安全沙盒、权限控制 |
+| **系统监控** | 自定义 | `psutil`实现 | 跨平台、实时数据 |
+| **应用追踪** | 自定义 | 平台API实现 | 独有功能、深度定制 |
+| **姿态检测** | 自定义 | `OpenCV`实现 | 健康监控、隐私保护 |
+| **屏幕分析** | 自定义 | `pyautogui+OCR` | 桌面集成、即时分析 |
 
 ## 🚀 集成方案
 
@@ -330,31 +486,37 @@ class AIStatusIndicator(QWidget):
 
 ### 11. **开发分工**
 
-#### 11.1 并行开发策略
+#### 11.1 并行开发策略（重新规划）
 ```
-开发者A：对话模块 (chat/)
-├── Qwen-Agent集成优化
-├── 多轮对话逻辑
-├── 工具调用扩展
-└── 个性化对话风格
+开发者A：智能对话模块 (chat/)
+├── Qwen-Agent内置工具集成
+├── MCP服务器配置和管理
+├── 多轮对话上下文优化
+└── 工具调用响应格式化
 
-开发者B：视觉模块 (vision/)
-├── 屏幕截取优化
-├── OCR文字识别
-├── 图像内容分析
-└── UI元素检测
+开发者B：视觉分析模块 (vision/)
+├── 屏幕截取和预处理
+├── OCR文字识别优化
+├── 图像内容智能分析
+└── UI元素和布局检测
 
-开发者C：摄像头模块 (camera/)
-├── 姿态检测算法
-├── 健康监控逻辑
-├── 疲劳状态分析
-└── 手势识别功能
+开发者C：健康监控模块 (camera/)
+├── 姿态检测和分析算法
+├── 健康监控逻辑实现
+├── 疲劳和专注度检测
+└── 隐私保护和用户授权
 
-开发者D：工具模块 (tools/)
-├── 系统信息查询
-├── 天气API集成
-├── 文件操作工具
-└── 实用小工具
+开发者D：系统集成模块 (tools/)
+├── 跨平台系统信息查询
+├── 应用使用时长统计
+├── 自定义工具与Qwen-Agent集成
+└── 工具调用优先级管理
+
+开发者E：追踪统计模块 (tracker/)
+├── 跨平台应用监控实现
+├── 使用数据分析和可视化
+├── 效率报告生成
+└── 数据隐私和本地存储
 ```
 
 #### 11.2 协作流程
@@ -362,9 +524,151 @@ class AIStatusIndicator(QWidget):
 1. 选择模块 → 2. 复制模板 → 3. 实现功能 → 4. 本地测试 → 5. 提交PR
 ```
 
-### 12. **扩展机制**
+### 12. **Qwen-Agent工具集成指南**
 
-#### 12.1 新模块开发模板
+#### 12.1 快速集成清单
+
+**安装依赖**：
+```bash
+# 完整安装（推荐）
+pip install -U "qwen-agent[gui,rag,code_interpreter,mcp]"
+
+# 按需安装的可选组件
+[gui]                  # Gradio界面支持
+[rag]                  # RAG检索支持  
+[code_interpreter]     # 代码解释器支持
+[mcp]                  # MCP协议支持
+```
+
+**基础工具配置**：
+```python
+# 在ChatModule中直接使用
+tools = [
+    'code_interpreter',  # 代码执行
+    'web_search',       # 网络搜索
+    'amap_weather',     # 天气查询
+    'image_gen',        # 图像生成
+    'doc_parser'        # 文档解析
+]
+
+agent = Assistant(
+    llm=llm_config,
+    function_list=tools,
+    system_message="你的系统提示..."
+)
+```
+
+#### 12.2 MCP服务器部署
+
+**环境准备**：
+```bash
+# 安装Node.js和uv（macOS）
+brew install node uv git sqlite3
+
+# 安装Node.js和uv（Windows）
+winget install --id=astral-sh.uv -e
+winget install git.git sqlite.sqlite
+```
+
+**MCP服务器配置**：
+```python
+mcp_config = {
+    "mcpServers": {
+        # 时间服务（支持时区）
+        "time": {
+            "command": "uvx",
+            "args": ["mcp-server-time", "--local-timezone=Asia/Shanghai"]
+        },
+        
+        # 文件系统操作（指定允许目录）
+        "filesystem": {
+            "command": "npx",
+            "args": ["-y", "@modelcontextprotocol/server-filesystem", "/safe/path"]
+        },
+        
+        # SQLite数据库操作
+        "sqlite": {
+            "command": "uvx", 
+            "args": ["mcp-server-sqlite", "--db-path", "app.db"]
+        },
+        
+        # HTTP请求工具
+        "fetch": {
+            "command": "uvx",
+            "args": ["mcp-server-fetch"]
+        }
+    }
+}
+```
+
+#### 12.3 工具使用示例
+
+**代码执行示例**：
+```python
+# 用户: "画一个正弦波图像"
+# Qwen-Agent自动调用code_interpreter:
+import matplotlib.pyplot as plt
+import numpy as np
+
+x = np.linspace(0, 4*np.pi, 100)
+y = np.sin(x)
+
+plt.figure(figsize=(10, 6))
+plt.plot(x, y, 'b-', linewidth=2)
+plt.title('正弦波')
+plt.grid(True)
+plt.show()
+```
+
+**网络搜索示例**：
+```python
+# 用户: "最新的AI发展动态"
+# Qwen-Agent自动调用web_search获取实时信息
+```
+
+**图像生成示例**：
+```python
+# 用户: "生成一张可爱的小猫图片"
+# Qwen-Agent自动调用image_gen生成图像
+```
+
+#### 12.4 工具扩展策略
+
+**三层工具架构**：
+```python
+class EnhancedChatModule(BaseModule):
+    def setup(self, config):
+        # 第一层：Qwen-Agent内置工具（免维护，高质量）
+        self.builtin_tools = [
+            'code_interpreter', 'web_search', 'amap_weather', 
+            'image_gen', 'doc_parser'
+        ]
+        
+        # 第二层：MCP生态工具（标准协议，安全可靠）
+        self.mcp_tools = {
+            "mcpServers": {
+                "time": {"command": "uvx", "args": ["mcp-server-time"]},
+                "filesystem": {"command": "npx", "args": ["-y", "@modelcontextprotocol/server-filesystem"]}
+            }
+        }
+        
+        # 第三层：自定义工具（特殊需求，完全控制）
+        self.custom_tools = [
+            self.system_monitor_tool,    # 系统监控
+            self.app_tracker_tool,       # 应用追踪
+            self.posture_check_tool      # 姿态检测
+        ]
+        
+        # 集成到Qwen-Agent
+        self.agent = Assistant(
+            llm=llm_config,
+            function_list=self.builtin_tools + [self.mcp_tools] + self.custom_tools
+        )
+```
+
+### 13. **扩展机制**
+
+#### 13.1 新模块开发模板
 ```python
 # 5分钟创建新模块
 class NewModule(BaseModule):
@@ -387,7 +691,7 @@ class NewModule(BaseModule):
         return ["功能1", "功能2"]
 ```
 
-#### 12.2 工具扩展机制
+#### 13.2 工具扩展机制
 ```python
 # Chat模块可以调用其他模块的功能
 class ChatModule(BaseModule):
@@ -401,9 +705,9 @@ class ChatModule(BaseModule):
 
 ## 📈 性能和优化
 
-### 13. **性能考虑**
+### 14. **性能考虑**
 
-#### 13.1 资源管理
+#### 14.1 资源管理
 ```python
 # 配置中的资源限制
 {
@@ -415,7 +719,7 @@ class ChatModule(BaseModule):
 }
 ```
 
-#### 13.2 错误处理
+#### 14.2 错误处理
 ```python
 def process_message(self, message):
     results = []
@@ -431,9 +735,9 @@ def process_message(self, message):
     return results
 ```
 
-### 14. **安全和隐私**
+### 15. **安全和隐私**
 
-#### 14.1 隐私保护
+#### 15.1 隐私保护
 ```python
 # 摄像头模块的隐私控制
 class CameraModule(BaseModule):
@@ -446,7 +750,7 @@ class CameraModule(BaseModule):
             return "🔒 摄像头功能处于隐私保护模式"
 ```
 
-#### 14.2 数据安全
+#### 15.2 数据安全
 - 🔐 **本地处理**：敏感数据本地处理，不上传
 - 🔑 **API密钥保护**：加密存储用户API密钥
 - 📝 **对话记录**：用户可控制是否保存对话历史
@@ -454,7 +758,7 @@ class CameraModule(BaseModule):
 
 ## 🎯 实施路线图
 
-### 15. **开发阶段**
+### 16. **开发阶段**
 
 #### 阶段一：核心框架 (已完成)
 - ✅ 基础架构搭建
@@ -462,11 +766,23 @@ class CameraModule(BaseModule):
 - ✅ 配置管理机制
 - ✅ 演示程序
 
-#### 阶段二：功能完善 (1-2周)
-- 🔄 Chat模块：完善Qwen-Agent集成
-- 🔄 Vision模块：添加OCR和图像分析
-- 🔄 Camera模块：实现真实姿态检测
-- 🔄 Tools模块：集成实际API服务
+#### 阶段二：工具集成 (1-2周)
+**优先级A - Qwen-Agent内置工具集成**：
+- 🔄 集成`code_interpreter`：代码执行和数据分析
+- 🔄 集成`web_search`：实时信息搜索
+- 🔄 集成`amap_weather`：替换模拟天气数据
+- 🔄 集成`image_gen`：AI图像生成功能
+- 🔄 集成`doc_parser`：文档解析能力
+
+**优先级B - MCP生态集成**：
+- 📋 配置`mcp-server-time`：时间服务
+- 📋 配置`mcp-server-filesystem`：文件操作
+- 📋 配置`mcp-server-fetch`：网络请求
+
+**优先级C - 自定义模块完善**：
+- 🔄 Vision模块：屏幕分析和OCR
+- 🔄 Camera模块：姿态检测实现
+- 🔄 Tracker模块：应用使用统计
 
 #### 阶段三：UI集成 (1周)
 - 📋 集成到DyberPet主界面
@@ -480,7 +796,7 @@ class CameraModule(BaseModule):
 - 📋 用户体验优化
 - 📋 文档完善和测试
 
-### 16. **成功指标**
+### 17. **成功指标**
 
 - 🎯 **开发效率**：新模块5分钟内可完成开发
 - 🎯 **稳定性**：单个模块故障不影响系统运行
@@ -492,7 +808,20 @@ class CameraModule(BaseModule):
 
 ## 📝 总结
 
-这个设计基于**实用主义**和**协作优先**的原则，创建了一个真正简单易用的AI Agent系统。通过极简的接口设计和自动化的模块管理，让团队成员能够专注于功能实现而不是架构复杂性，同时保证了系统的扩展性和稳定性。
+这个重新规划的设计基于**优势互补**和**生态共享**的原则，创建了一个既强大又简单的AI Agent系统。通过优先使用Qwen-Agent成熟的内置工具生态，我们避免了重复造轮子，同时保持了系统的可扩展性和个性化能力。
 
-**核心价值**：让DyberPet从简单的桌面宠物升级为智能AI助手，同时保持开发的简单性和乐趣。
+### 🎯 **设计亮点**
+
+**三层工具架构**：
+1. **Qwen-Agent内置工具** - 免维护的高质量工具（代码执行、网络搜索、AI绘画等）
+2. **MCP生态工具** - 标准协议的第三方工具（时间服务、文件操作等）  
+3. **自定义模块** - 专有功能实现（系统监控、应用追踪、姿态检测等）
+
+**核心优势**：
+- 🔧 **站在巨人肩膀上**：直接获得成熟的AI工具能力
+- 🚀 **快速上线**：核心功能开箱即用，无需从零开发
+- 🎯 **专注创新**：团队专注于DyberPet独有的功能创新
+- 🔄 **持续演进**：随Qwen-Agent生态发展自动获得新能力
+
+**实施价值**：让DyberPet从简单的桌面宠物快速升级为功能完备的智能AI助手，拥有代码执行、实时搜索、AI绘画、文档处理等专业能力，同时保持开发的简单性和系统的稳定性。
 
