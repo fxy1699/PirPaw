@@ -1,0 +1,37 @@
+{
+  "enabled_modules": ["chat", "vision", "camera", "tools"],
+  "global_settings": {
+    "language": "zh-CN",
+    "debug_mode": false,
+    "max_response_length": 1000,
+    "response_timeout": 30
+  },
+  "module_configs": {
+    "chat": {
+      "qwen_api_key": "",
+      "model": "qwen-plus",
+      "enable_thinking": true,
+      "max_conversation_history": 10,
+      "personality": "可爱的桌面宠物助手"
+    },
+    "vision": {
+      "auto_capture": false,
+      "capture_interval": 5,
+      "ocr_enabled": true,
+      "image_analysis_enabled": true,
+      "max_image_size": [1920, 1080]
+    },
+    "camera": {
+      "privacy_mode": true,
+      "pose_detection": true,
+      "gesture_recognition": false,
+      "health_monitoring": true,
+      "capture_interval": 2
+    },
+    "tools": {
+      "enabled_tools": ["time", "weather", "system_info", "file_operations"],
+      "weather_api_key": "",
+      "default_city": "北京"
+    }
+  }
+} 
