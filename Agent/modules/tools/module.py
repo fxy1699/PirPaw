@@ -43,10 +43,10 @@ class ToolsModule(BaseModule):
             if 'time' in self.enabled_tools:
                 return self.get_current_time()
         
-        # 天气相关
-        elif any(keyword in message for keyword in ['天气', '温度', '下雨', '晴天']):
-            if 'weather' in self.enabled_tools:
-                return self.get_weather_info(message)
+        # 天气相关 - 已迁移到Chat模块（高德天气API）
+        # elif any(keyword in message for keyword in ['天气', '温度', '下雨', '晴天']):
+        #     if 'weather' in self.enabled_tools:
+        #         return self.get_weather_info(message)
         
         # 系统信息
         elif any(keyword in message for keyword in ['系统', 'CPU', '内存', '磁盘', '性能']):
