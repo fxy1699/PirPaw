@@ -3,6 +3,7 @@ import json
 import time
 from datetime import datetime
 from .tools import DyberPetTools
+from .module_function_registry import ModuleFunctionRegistry
 
 
 class ChatModule(BaseModule):
@@ -18,6 +19,7 @@ class ChatModule(BaseModule):
         self.agent = None
         self.conversation_history = []
         self.tools = None
+        self.module_registry = None
         self.agent_core_ref = None  # 对AgentCore的引用
         self.last_interaction_time = None
         self.user_profile = {
@@ -60,6 +62,9 @@ class ChatModule(BaseModule):
             # 初始化工具系统
             self._setup_tools()
             
+            # 初始化模块功能注册系统
+            self._setup_module_functions()
+            
             # 集成Qwen-Agent内置工具（去掉code_interpreter）
             qwen_tools = [
                 'image_gen',       # 🎨 图像生成（无需API key）
@@ -83,11 +88,25 @@ class ChatModule(BaseModule):
             else:
                 print("💡 未配置AMAP_TOKEN，天气功能将使用Tools模块")
             
-            # 创建Agent实例，集成内置工具
+            # 集成模块Function Call工具
+            module_functions = []
+            if self.module_registry:
+                try:
+                    module_tools = self.module_registry.get_function_list_for_qwen_agent()
+                    # qwen-agent需要的是函数对象列表
+                    module_functions.extend(module_tools)
+                    print(f"🔗 已集成 {len(module_tools)} 个模块功能到qwen-agent")
+                except Exception as e:
+                    print(f"⚠️ 集成模块功能失败: {e}")
+            
+            # 合并内置工具和模块工具
+            all_tools = qwen_tools + module_functions
+            
+            # 创建Agent实例，集成所有工具
             self.agent = Assistant(
                 llm=llm_cfg,
                 system_message=self._build_enhanced_system_message(),
-                function_list=qwen_tools,
+                function_list=all_tools,
                 files=[],
                 name="小柏 - DyberPet Assistant"
             )
@@ -159,10 +178,23 @@ class ChatModule(BaseModule):
                     if os.getenv('AMAP_TOKEN'):
                         qwen_tools.append('amap_weather')  # 🌤️ 天气查询
                     
+                    # 集成模块Function Call工具
+                    module_functions = []
+                    if self.module_registry:
+                        try:
+                            module_tools = self.module_registry.get_function_list_for_qwen_agent()
+                            module_functions.extend(module_tools)
+                            print(f"🔗 重新初始化时集成了 {len(module_tools)} 个模块功能")
+                        except Exception as e:
+                            print(f"⚠️ 重新初始化时集成模块功能失败: {e}")
+                    
+                    # 合并所有工具
+                    all_tools = qwen_tools + module_functions
+                    
                     self.agent = Assistant(
                         llm=llm_cfg,
                         system_message=self._build_enhanced_system_message(),
-                        function_list=qwen_tools,
+                        function_list=all_tools,
                         files=[],
                         name="小柏 - DyberPet Assistant"
                     )
@@ -171,8 +203,44 @@ class ChatModule(BaseModule):
                     
                 except Exception as e:
                     print(f"⚠️ 重新初始化工具失败: {e}")
+        
+        # 初始化或更新模块注册系统
+        if not self.module_registry:
+            try:
+                self.module_registry = ModuleFunctionRegistry(agent_core)
+                print(f"🔧 模块功能注册系统已初始化")
+            except Exception as e:
+                print(f"❌ 模块功能注册系统初始化失败: {e}")
+        else:
+            self.module_registry.agent_core = agent_core
             
-            print(f"✅ {self.name} AgentCore引用已设置")
+        print(f"✅ {self.name} AgentCore引用已设置")
+    
+    def _setup_module_functions(self):
+        """初始化模块功能注册系统"""
+        try:
+            # 如果AgentCore引用还没设置，先创建空的注册系统
+            self.module_registry = ModuleFunctionRegistry(self.agent_core_ref)
+            print(f"🔧 模块功能注册系统初始化成功")
+        except Exception as e:
+            print(f"❌ 模块功能注册系统初始化失败: {e}")
+            # 创建空的注册系统，等待AgentCore引用设置后再初始化
+            self.module_registry = None
+    
+    def register_all_modules(self, modules):
+        """注册所有模块的功能到Function Call系统"""
+        if not self.module_registry:
+            return
+        
+        try:
+            # 过滤掉Chat模块自身，避免循环调用
+            filtered_modules = [m for m in modules if not isinstance(m, ChatModule)]
+            self.module_registry.register_modules(filtered_modules)
+            
+            print(f"🔗 已注册 {len(filtered_modules)} 个模块功能到智能对话系统")
+            
+        except Exception as e:
+            print(f"❌ 模块功能注册失败: {e}")
     
     def _build_system_message(self):
         """构建个性化系统指令"""

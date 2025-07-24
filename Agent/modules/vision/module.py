@@ -162,4 +162,132 @@ class VisionModule(BaseModule):
     def cleanup(self):
         """清理资源"""
         self.last_screenshot = None
-        super().cleanup() 
+        super().cleanup()
+
+    # ============ Function Call 接口 ============
+    
+    def get_function_definitions(self) -> list:
+        """获取Vision模块的Function Call工具定义"""
+        return [
+            {
+                "name": "capture_screen",
+                "description": "截取用户屏幕并进行基础分析，可以理解当前显示的内容",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "analysis_type": {
+                            "type": "string",
+                            "enum": ["general", "code", "document", "error", "interface"],
+                            "description": "分析类型：general通用分析，code代码分析，document文档分析，error错误诊断，interface界面分析"
+                        },
+                        "region": {
+                            "type": "string",
+                            "description": "截图区域（可选），格式: 'x,y,width,height'，如 '100,100,800,600'"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "analyze_image",
+                "description": "分析已有的截图或图像内容，提供详细的视觉信息",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "focus": {
+                            "type": "string",
+                            "description": "分析焦点，如'文字'、'界面元素'、'错误信息'、'代码'等"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "extract_text",
+                "description": "从屏幕截图中提取文字内容（OCR功能）",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用Vision模块的具体功能"""
+        if not self.enabled:
+            raise RuntimeError(f"模块 {self.name} 已禁用")
+        
+        if function_name == "capture_screen":
+            return self._function_capture_screen(arguments)
+        elif function_name == "analyze_image":
+            return self._function_analyze_image(arguments)
+        elif function_name == "extract_text":
+            return self._function_extract_text(arguments)
+        else:
+            raise ValueError(f"未知功能: {function_name}")
+    
+    def _function_capture_screen(self, arguments: dict):
+        """Function Call: 截取屏幕"""
+        analysis_type = arguments.get("analysis_type", "general")
+        region_str = arguments.get("region")
+        
+        # 解析区域参数
+        region = None
+        if region_str:
+            try:
+                coords = [int(x.strip()) for x in region_str.split(',')]
+                if len(coords) == 4:
+                    region = tuple(coords)
+            except:
+                pass
+        
+        # 截取屏幕
+        screenshot = self.capture_screen(region)
+        if not screenshot:
+            return "❌ 截图失败，可能是权限问题或系统不支持"
+        
+        # 根据分析类型进行分析
+        if analysis_type == "general":
+            result = self.analyze_screenshot(screenshot, "截取屏幕进行通用分析")
+        elif analysis_type == "code":
+            result = self.analyze_screenshot(screenshot, "分析代码界面") + "\n💻 建议关注语法高亮、错误标记、调试信息等"
+        elif analysis_type == "document":
+            result = self.analyze_screenshot(screenshot, "分析文档内容") + "\n📄 可以提取文字内容进行详细分析"
+        elif analysis_type == "error":
+            result = self.analyze_screenshot(screenshot, "分析错误信息") + "\n⚠️ 请重点关注红色错误提示、异常堆栈等信息"
+        elif analysis_type == "interface":
+            result = self.analyze_screenshot(screenshot, "分析用户界面") + "\n🎨 关注按钮、菜单、输入框等UI元素"
+        else:
+            result = self.analyze_screenshot(screenshot, f"进行{analysis_type}分析")
+        
+        return result
+    
+    def _function_analyze_image(self, arguments: dict):
+        """Function Call: 分析图像"""
+        focus = arguments.get("focus", "整体内容")
+        
+        if not self.last_screenshot:
+            return "❌ 没有可分析的截图，请先截取屏幕"
+        
+        result = f"🔍 针对'{focus}'的图像分析:\n"
+        result += self.analyze_screenshot(self.last_screenshot, f"分析{focus}")
+        
+        if "文字" in focus:
+            text_content = self.extract_text(self.last_screenshot)
+            result += f"\n📝 提取的文字内容: {text_content}"
+        
+        return result
+    
+    def _function_extract_text(self, arguments: dict):
+        """Function Call: 提取文字"""
+        if not self.last_screenshot:
+            # 先截取屏幕
+            screenshot = self.capture_screen()
+            if not screenshot:
+                return "❌ 无法截取屏幕进行文字提取"
+        else:
+            screenshot = self.last_screenshot
+        
+        text_content = self.extract_text(screenshot)
+        return f"📝 从屏幕提取的文字内容:\n{text_content}" 

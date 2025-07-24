@@ -145,6 +145,29 @@ class AgentCore:
             else:
                 module.disable()
                 self.modules.append(module)
+        
+        # 在所有模块加载完成后，注册模块功能到Function Call系统
+        self._register_module_functions()
+
+    def _register_module_functions(self):
+        """注册所有模块功能到Function Call系统"""
+        try:
+            # 查找Chat模块
+            chat_module = None
+            for module in self.modules:
+                if hasattr(module, 'register_all_modules') and module.enabled:
+                    chat_module = module
+                    break
+            
+            if chat_module:
+                # 注册所有模块功能
+                chat_module.register_all_modules(self.modules)
+                print(f"🚀 Function Call系统注册完成")
+            else:
+                print("💡 未找到启用的Chat模块，跳过Function Call注册")
+                
+        except Exception as e:
+            print(f"⚠️ Function Call系统注册失败: {e}")
 
     def process_message(self, message: str, context: Dict[str, Any] = None) -> List[str]:
         """处理用户消息"""

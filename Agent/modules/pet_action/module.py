@@ -485,4 +485,122 @@ class PetActionModule(BaseModule):
             self.action_executor.stop()
         
         super().cleanup()
-        print(f"🧹 {self.name} 模块清理完成") 
+        print(f"🧹 {self.name} 模块清理完成")
+
+    # ============ Function Call 接口 ============
+    
+    def get_function_definitions(self) -> list:
+        """获取宠物动作模块的Function Call工具定义"""
+        return [
+            {
+                "name": "control_pet_action",
+                "description": "控制桌面宠物执行指定动作，如睡觉、走路、跳舞等，支持中文自然语言描述",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "action_command": {
+                            "type": "string",
+                            "description": "动作指令，如'让小猫睡觉'、'走路'、'跳舞'、'站立'等自然语言描述"
+                        }
+                    },
+                    "required": ["action_command"]
+                }
+            },
+            {
+                "name": "get_pet_status",
+                "description": "获取当前宠物的状态信息，包括当前宠物名称和可用动作",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "switch_pet",
+                "description": "切换到指定的宠物",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "pet_name": {
+                            "type": "string",
+                            "description": "宠物名称，如'Kitty'、'ChrisKitty'、'TestPet'等"
+                        }
+                    },
+                    "required": ["pet_name"]
+                }
+            },
+            {
+                "name": "list_available_pets",
+                "description": "列出所有可用的宠物及其动作能力",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用宠物动作模块的具体功能"""
+        if not self.enabled:
+            raise RuntimeError(f"模块 {self.name} 已禁用")
+        
+        if function_name == "control_pet_action":
+            return self._function_control_pet_action(arguments)
+        elif function_name == "get_pet_status":
+            return self._function_get_pet_status(arguments)
+        elif function_name == "switch_pet":
+            return self._function_switch_pet(arguments)
+        elif function_name == "list_available_pets":
+            return self._function_list_available_pets(arguments)
+        else:
+            raise ValueError(f"未知功能: {function_name}")
+    
+    def _function_control_pet_action(self, arguments: dict):
+        """Function Call: 控制宠物动作"""
+        action_command = arguments.get("action_command", "")
+        
+        if not action_command:
+            return "❌ 请提供动作指令"
+        
+        # 使用现有的handle_message方法处理动作指令
+        result = self.handle_message(action_command)
+        
+        if result:
+            return result
+        else:
+            return "🤔 抱歉，我没能理解这个动作指令。请尝试使用'睡觉'、'走路'、'跳舞'等常见动作词"
+    
+    def _function_get_pet_status(self, arguments: dict):
+        """Function Call: 获取宠物状态"""
+        status_result = self.handle_status_request("现在的状态")
+        if status_result:
+            return status_result
+        else:
+            return f"🐾 当前宠物: {self.current_pet_name or '未检测到'}\n📋 发现宠物: {len(self.available_pets)} 个"
+    
+    def _function_switch_pet(self, arguments: dict):
+        """Function Call: 切换宠物"""
+        pet_name = arguments.get("pet_name", "")
+        
+        if not pet_name:
+            return "❌ 请提供宠物名称"
+        
+        result = self.switch_pet(pet_name)
+        if result == "成功":
+            return f"✅ 已切换到宠物: {pet_name}"
+        else:
+            return f"❌ 切换宠物失败: {result}"
+    
+    def _function_list_available_pets(self, arguments: dict):
+        """Function Call: 列出可用宠物"""
+        capability_result = self.handle_capability_request("有什么动作")
+        if capability_result:
+            return capability_result
+        else:
+            pets_info = []
+            for pet_id in self.available_pets:
+                pet_name = pet_id.replace('_pet', '') if pet_id.endswith('_pet') else pet_id
+                pets_info.append(f"• {pet_name}")
+            
+            return f"🐾 可用宠物:\n" + "\n".join(pets_info) 

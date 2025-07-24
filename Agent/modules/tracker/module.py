@@ -281,6 +281,138 @@ class TrackerModule(BaseModule):
             self.stop_background_tracking()
         super().cleanup()
 
+    # ============ Function Call 接口 ============
+    
+    def get_function_definitions(self) -> list:
+        """获取Tracker模块的Function Call工具定义"""
+        return [
+            {
+                "name": "get_usage_stats",
+                "description": "获取应用使用时长统计信息，可以查看今天、本周或本月的使用情况",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "period": {
+                            "type": "string",
+                            "enum": ["today", "week", "month"],
+                            "description": "统计周期：today今天，week本周，month本月"
+                        },
+                        "detail_level": {
+                            "type": "string",
+                            "enum": ["summary", "detailed"],
+                            "description": "详细程度：summary概要信息，detailed详细信息"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "start_tracking",
+                "description": "开始应用使用时长追踪",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "stop_tracking", 
+                "description": "停止应用使用时长追踪",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_tracking_status",
+                "description": "获取当前追踪状态和实时信息",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "generate_usage_report",
+                "description": "生成详细的使用报告，包含分析和建议",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "days": {
+                            "type": "integer",
+                            "description": "报告天数，默认1天",
+                            "minimum": 1,
+                            "maximum": 30
+                        }
+                    },
+                    "required": []
+                }
+            }
+        ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用Tracker模块的具体功能"""
+        if not self.enabled:
+            raise RuntimeError(f"模块 {self.name} 已禁用")
+        
+        if function_name == "get_usage_stats":
+            return self._function_get_usage_stats(arguments)
+        elif function_name == "start_tracking":
+            return self._function_start_tracking(arguments)
+        elif function_name == "stop_tracking":
+            return self._function_stop_tracking(arguments)
+        elif function_name == "get_tracking_status":
+            return self._function_get_tracking_status(arguments)
+        elif function_name == "generate_usage_report":
+            return self._function_generate_usage_report(arguments)
+        else:
+            raise ValueError(f"未知功能: {function_name}")
+    
+    def _function_get_usage_stats(self, arguments: dict):
+        """Function Call: 获取使用统计"""
+        period = arguments.get("period", "today")
+        detail_level = arguments.get("detail_level", "summary")
+        
+        if period == "today":
+            if detail_level == "summary":
+                return self.get_usage_overview()
+            else:
+                return self.get_usage_report(days=1)
+        elif period == "week":
+            return self.get_usage_report(days=7)
+        elif period == "month":
+            return self.get_usage_report(days=30)
+        else:
+            return self.get_usage_overview()
+    
+    def _function_start_tracking(self, arguments: dict):
+        """Function Call: 开始追踪"""
+        if self.tracking_active:
+            return "⚠️ 追踪已经在运行中"
+        
+        self.start_background_tracking()
+        return "✅ 已开始应用使用追踪"
+    
+    def _function_stop_tracking(self, arguments: dict):
+        """Function Call: 停止追踪"""
+        if not self.tracking_active:
+            return "⚠️ 追踪未在运行"
+        
+        self.stop_background_tracking()
+        return "✅ 已停止应用使用追踪"
+    
+    def _function_get_tracking_status(self, arguments: dict):
+        """Function Call: 获取追踪状态"""
+        status = self.get_tracking_status()
+        return f"📊 追踪状态:\n{status}"
+    
+    def _function_generate_usage_report(self, arguments: dict):
+        """Function Call: 生成使用报告"""
+        days = arguments.get("days", 1)
+        report = self.get_usage_report(days=days)
+        return f"📈 {days}天使用报告:\n{report}"
+
 
 class CrossPlatformAppTracker:
     """从test.py移植过来的跨平台应用追踪器"""
