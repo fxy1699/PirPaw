@@ -15,6 +15,7 @@ class VisionModule(BaseModule):
         super().__init__()
         self.last_screenshot = None
         self.ocr_engine = None
+        self._hotkey_listener = None  # 新增：快捷键监听句柄
         
     def setup(self, config=None):
         """初始化视觉功能"""
@@ -28,6 +29,28 @@ class VisionModule(BaseModule):
             # 可选：初始化OCR引擎
             if self.config.get('ocr_enabled', True):
                 self._init_ocr()
+
+            # 注册全局快捷键（Ctrl+Alt+S）- 使用 pynput 替代 keyboard
+            try:
+                import threading
+                from pynput import keyboard as pynput_keyboard  # pip install pynput
+                def on_activate():
+                    screenshot = self.capture_screen()
+                    if screenshot:
+                        print("📸 快捷键截图已保存！")
+                    else:
+                        print("❌ 快捷键截图失败！")
+                def start_hotkey():
+                    # 监听 F1
+                    with pynput_keyboard.GlobalHotKeys({
+                        '<f1>': on_activate
+                    }) as h:
+                        h.join()
+                self._hotkey_listener = threading.Thread(target=start_hotkey, daemon=True)
+                self._hotkey_listener.start()
+                print("💡 已注册截图快捷键 F1 (pynput)")
+            except Exception as e:
+                print(f"⚠️ 快捷键注册失败: {e}")
                 
         except ImportError:
             print("❌ 未安装pyautogui，请运行: pip install pyautogui")
@@ -100,10 +123,34 @@ class VisionModule(BaseModule):
             save_path = os.path.join(save_dir, f'screenshot_{timestamp}.png')
             screenshot.save(save_path)
 
+            # 新增：自动复制到剪切板
+            self._copy_image_to_clipboard(screenshot)
+
             return screenshot  # 如需返回路径可 return screenshot, save_path
         except Exception as e:
             print(f"❌ 截图失败: {e}")
             return None
+
+    def _copy_image_to_clipboard(self, pil_image):
+        """将PIL图片复制到macOS剪切板"""
+        try:
+            from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+            from Foundation import NSData
+            import io
+
+            output = io.BytesIO()
+            pil_image.save(output, format='PNG')
+            data = output.getvalue()
+            output.close()
+
+            nsdata = NSData.dataWithBytes_length_(data, len(data))
+            image = NSImage.alloc().initWithData_(nsdata)
+            pb = NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.writeObjects_([image])
+            print("✅ 截图已复制到剪切板！")
+        except Exception as e:
+            print(f"⚠️ 复制图片到剪切板失败: {e}")
     
     def analyze_screenshot(self, screenshot, user_message):
         """分析截图内容"""
@@ -169,6 +216,8 @@ class VisionModule(BaseModule):
     def cleanup(self):
         """清理资源"""
         self.last_screenshot = None
+        # 移除快捷键监听（pynput 无需手动 unhook，但可尝试安全退出）
+        # 若有更复杂的监听管理，可在此处补充
         super().cleanup()
 
     # ============ Function Call 接口 ============
