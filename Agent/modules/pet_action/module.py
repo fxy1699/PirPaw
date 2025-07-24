@@ -72,13 +72,61 @@ class PetActionModule(BaseModule):
             # 启动动作执行器
             self.action_executor.start()
             
+            # 检查DyberPet连接状态
+            self._check_dyberpet_connection()
+            
             print(f"✅ {self.name} 模块初始化成功")
             print(f"   发现宠物: {len(self.available_pets)} 个")
             print(f"   当前宠物: {self.current_pet_name or '未检测到'}")
+            print(f"   DyberPet连接: {self.action_executor.get_dyberpet_connection_status().value}")
             
         except Exception as e:
             print(f"❌ {self.name} 模块初始化失败: {e}")
             self.enabled = False
+    
+    def _check_dyberpet_connection(self):
+        """检查与DyberPet的连接状态"""
+        try:
+            if self.action_executor.is_connected_to_dyberpet():
+                print("🎉 已连接到DyberPet主框架，可以执行真实动作")
+                
+                # 尝试获取DyberPet中的宠物状态
+                pet_state = self.action_executor.bridge.get_pet_state()
+                if pet_state:
+                    self.current_pet_name = pet_state.name
+                    print(f"🐾 从DyberPet获取当前宠物: {pet_state.name}")
+                    
+                    # 更新可用动作列表
+                    if pet_state.available_actions:
+                        print(f"📋 DyberPet动作列表: {pet_state.available_actions}")
+            else:
+                print("💡 未连接到DyberPet，将使用模拟模式")
+                
+        except Exception as e:
+            print(f"⚠️ 检查DyberPet连接失败: {e}")
+    
+    def connect_to_dyberpet(self, app_instance=None, pet_widget=None) -> bool:
+        """
+        手动连接到DyberPet实例
+        
+        Args:
+            app_instance: DyberPetApp实例  
+            pet_widget: PetWidget实例
+            
+        Returns:
+            bool: 连接是否成功
+        """
+        try:
+            success = self.action_executor.connect_to_dyberpet(app_instance, pet_widget)
+            if success:
+                self._check_dyberpet_connection()
+                print("🔗 手动连接DyberPet成功")
+            else:
+                print("❌ 手动连接DyberPet失败")
+            return success
+        except Exception as e:
+            print(f"❌ 连接DyberPet异常: {e}")
+            return False
     
     def handle_message(self, message: str, context=None) -> Optional[str]:
         """处理用户的动作控制消息"""

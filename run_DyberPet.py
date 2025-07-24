@@ -195,6 +195,38 @@ if __name__ == '__main__':
     app = DyberPetApp(sys.argv)
     app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
+    # ============ Agent系统集成 ============
+    try:
+        # 添加Agent路径
+        import os
+        agent_path = os.path.join(os.path.dirname(__file__), 'Agent')
+        if agent_path not in sys.path:
+            sys.path.insert(0, agent_path)
+        
+        # 启动Agent集成
+        from Agent.dyberpet_agent_integration import integrate_agent_with_dyberpet
+        integration_success = integrate_agent_with_dyberpet(app)
+        
+        if integration_success:
+            print("🎉 Agent系统已成功集成到DyberPet!")
+            print("💬 现在可以通过聊天窗口控制宠物了:")
+            print("   • 右键宠物 → 选择'智能聊天'")
+            print("   • 输入 '让小猫睡觉' 来控制动作")
+            print("   • 输入 '现在的状态' 查看宠物信息")
+            print("   • 输入 '走路' 或 '跳舞' 等动作指令")
+            
+            # 添加聊天窗口到应用
+            app.chat_integration_success = True
+        else:
+            print("⚠️ Agent系统集成失败，但DyberPet正常运行")
+            app.chat_integration_success = False
+            
+    except Exception as e:
+        print(f"⚠️ Agent系统集成时出错: {e}")
+        print("💡 DyberPet将正常运行，但无Agent功能")
+        app.chat_integration_success = False
+    # =========================================
+
     sys.exit(app.exec())
 
 

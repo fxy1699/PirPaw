@@ -10,6 +10,9 @@ from queue import Queue, Empty
 from dataclasses import dataclass
 from enum import Enum
 
+# 导入DyberPet桥接器
+from .dyberpet_bridge import get_dyberpet_bridge, ConnectionStatus
+
 
 class ActionStatus(Enum):
     """动作执行状态"""
@@ -53,7 +56,11 @@ class ActionExecutor:
         self.is_running = False
         self.worker_thread = None
         
-        # DyberPet系统接口（通过回调函数设置）
+        # DyberPet桥接器
+        self.bridge = get_dyberpet_bridge()
+        self.auto_connect = True  # 是否自动尝试连接DyberPet
+        
+        # 旧的接口保持兼容性
         self.dyber_pet_interface = None
         self.pet_status_getter = None
         self.pet_info_getter = None
@@ -63,6 +70,63 @@ class ActionExecutor:
         self.next_request_id = 1
         
         print("⚡ ActionExecutor 初始化完成")
+        
+        # 尝试自动连接到DyberPet
+        if self.auto_connect:
+            self._try_auto_connect()
+    
+    def _try_auto_connect(self):
+        """尝试自动连接到DyberPet"""
+        try:
+            if self.bridge.connect_to_dyberpet():
+                print("🎉 ActionExecutor已自动连接到DyberPet")
+            else:
+                print("💡 未找到DyberPet实例，将使用模拟模式")
+        except Exception as e:
+            print(f"⚠️ 自动连接DyberPet失败: {e}")
+    
+    def _try_reconnect(self):
+        """尝试重新连接到DyberPet"""
+        try:
+            # 尝试从Qt应用实例重新获取DyberPet
+            from PySide6.QtWidgets import QApplication
+            app = QApplication.instance()
+            
+            if app and hasattr(app, 'p'):
+                print("🔄 发现DyberPet应用，尝试重新连接...")
+                success = self.bridge.connect_to_dyberpet(app, app.p)
+                if success:
+                    print("✅ 重新连接成功")
+                else:
+                    print("❌ 重新连接失败")
+                return success
+            else:
+                print("❌ 未找到DyberPet应用")
+                return False
+        except Exception as e:
+            print(f"❌ 重新连接异常: {e}")
+            return False
+    
+    def connect_to_dyberpet(self, app_instance=None, pet_widget=None) -> bool:
+        """
+        手动连接到DyberPet实例
+        
+        Args:
+            app_instance: DyberPetApp实例
+            pet_widget: PetWidget实例
+            
+        Returns:
+            bool: 连接是否成功
+        """
+        return self.bridge.connect_to_dyberpet(app_instance, pet_widget)
+    
+    def is_connected_to_dyberpet(self) -> bool:
+        """检查是否已连接到DyberPet"""
+        return self.bridge.is_connected()
+    
+    def get_dyberpet_connection_status(self) -> ConnectionStatus:
+        """获取DyberPet连接状态"""
+        return self.bridge.get_connection_status()
     
     def set_dyber_pet_interface(self, interface_callback: Callable):
         """
@@ -416,23 +480,56 @@ class ActionExecutor:
         Returns:
             是否执行成功
         """
-        if not self.dyber_pet_interface:
-            print("⚠️ DyberPet接口未连接，模拟执行")
-            time.sleep(0.5)  # 模拟执行时间
-            return True
+        # 优先使用DyberPet桥接器
+        bridge_connected = self.bridge.is_connected()
         
-        try:
-            # 调用DyberPet接口
-            result = self.dyber_pet_interface("execute_action", {
-                "action_name": request.action_name,
-                "parameters": request.parameters
-            })
-            
-            return result.get("success", False)
-            
-        except Exception as e:
-            print(f"❌ 调用DyberPet接口失败: {e}")
-            return False
+        # 如果桥接器未连接，尝试重新连接
+        if not bridge_connected:
+            self._try_reconnect()
+            bridge_connected = self.bridge.is_connected()
+        
+        if bridge_connected:
+            try:
+                print(f"🌉 通过桥接器执行动作: {request.action_name}")
+                success = self.bridge.execute_action(
+                    request.action_name, 
+                    **(request.parameters or {})
+                )
+                
+                if success:
+                    print(f"✅ 桥接器执行成功: {request.action_name}")
+                else:
+                    print(f"❌ 桥接器执行失败: {request.action_name}")
+                
+                return success
+                
+            except Exception as e:
+                print(f"❌ 桥接器执行异常: {e}")
+                import traceback
+                print(f"📋 详细错误信息: {traceback.format_exc()}")
+                # 继续尝试旧接口
+        else:
+            print(f"⚠️ 桥接器未连接，跳过桥接器执行")
+        
+        # 回退到旧的回调接口
+        if self.dyber_pet_interface:
+            try:
+                print(f"🔄 通过回调接口执行动作: {request.action_name}")
+                result = self.dyber_pet_interface("execute_action", {
+                    "action_name": request.action_name,
+                    "parameters": request.parameters
+                })
+                
+                return result.get("success", False)
+                
+            except Exception as e:
+                print(f"❌ 调用回调接口失败: {e}")
+                return False
+        
+        # 都不可用，模拟执行
+        print(f"🎭 模拟执行动作: {request.action_name}")
+        time.sleep(0.5)  # 模拟执行时间
+        return True
     
     def get_execution_stats(self) -> Dict:
         """获取执行统计信息"""
