@@ -183,7 +183,8 @@ class PetActionModule(BaseModule):
             print(f"🔍 通过关键词识别到动作相关消息: {message_lower}")
         
         # 对于一些明确的动作关键词，强制认为是动作相关
-        strong_action_keywords = ["睡觉", "走路", "站立", "开心", "生气", "伤心", "休息", "玩"]
+        strong_action_keywords = ["睡觉", "走路", "站立", "开心", "生气", "伤心", "休息", "玩", 
+                                 "跳舞", "唱歌", "飞行", "施法", "变身", "舞蹈", "歌唱", "魔法"]
         if any(keyword in message_lower for keyword in strong_action_keywords):
             print(f"🔍 通过强关键词识别到动作相关消息: {message_lower}")
             return True
@@ -342,6 +343,10 @@ class PetActionModule(BaseModule):
     def get_pet_status(self) -> Dict:
         """获取当前宠物状态（供其他模块调用）"""
         return self._get_pet_status()
+    
+    def get_action_capabilities(self, pet_name: str, pet_type: str = 'role') -> Dict[str, List[str]]:
+        """获取指定宠物的动作能力摘要（供外部调用）"""
+        return self.action_discovery.get_action_capabilities(pet_name, pet_type)
     
     def switch_pet(self, pet_name: str) -> bool:
         """切换当前宠物"""

@@ -1,0 +1,109 @@
+{
+  "custom_actions": {
+    "pet_care": {
+      "喂食|给食物|feed|eat": "default",
+      "洗澡|清洁|bath|clean": "default", 
+      "梳毛|梳理|groom": "default",
+      "治疗|看病|heal": "default"
+    },
+    
+    "entertainment": {
+      "唱歌|sing": "default",
+      "跳舞|舞蹈|dance": "default",
+      "表演|show": "default",
+      "玩球|play_ball": "default",
+      "捉迷藏|hide_seek": "default"
+    },
+    
+    "emotions": {
+      "害羞|羞涩|shy": "default",
+      "兴奋|激动|excited": "default", 
+      "困惑|疑惑|confused": "default",
+      "惊讶|吃惊|surprised": "default",
+      "骄傲|自豪|proud": "default"
+    },
+    
+    "special_actions": {
+      "变身|transform": "default",
+      "发光|shine|glow": "default",
+      "隐身|invisible": "default", 
+      "飞行|fly": "default",
+      "瞬移|teleport": "default"
+    },
+    
+    "interactive": {
+      "打招呼|问好|hello|hi": "default",
+      "再见|拜拜|goodbye|bye": "default",
+      "谢谢|感谢|thank": "default",
+      "对不起|抱歉|sorry": "default",
+      "加油|努力|cheer": "default"
+    }
+  },
+  
+  "multi_language": {
+    "english": {
+      "sleep|rest|nap": "default",
+      "walk|move|run": "left", 
+      "happy|joy|glad": "default",
+      "sad|cry|upset": "default",
+      "angry|mad|furious": "default"
+    },
+    
+    "japanese": {
+      "寝る|眠る": "default",
+      "歩く|走る": "left",
+      "嬉しい|楽しい": "default", 
+      "悲しい|泣く": "default",
+      "怒る|腹立つ": "default"
+    }
+  },
+  
+  "contextual_mappings": {
+    "time_specific": {
+      "早安|おはよう|good_morning": {
+        "action": "default",
+        "time_range": "06:00-10:00",
+        "boost": 1.2
+      },
+      "晚安|おやすみ|good_night": {
+        "action": "default", 
+        "time_range": "20:00-06:00",
+        "boost": 1.5
+      }
+    },
+    
+    "mood_specific": {
+      "安慰|comfort": {
+        "action": "default",
+        "trigger_mood": "sad",
+        "boost": 1.3
+      },
+      "庆祝|celebrate": {
+        "action": "default",
+        "trigger_mood": "happy", 
+        "boost": 1.3
+      }
+    }
+  },
+  
+  "action_sequences": {
+    "morning_routine": {
+      "keywords": "晨间|早晨例行|morning_routine",
+      "sequence": [
+        {"action": "default", "duration": 1},
+        {"action": "left", "duration": 2}, 
+        {"action": "default", "duration": 1}
+      ]
+    },
+    
+    "playtime": {
+      "keywords": "玩耍时间|游戏时间|playtime", 
+      "sequence": [
+        {"action": "default", "duration": 1},
+        {"action": "left", "duration": 1},
+        {"action": "right", "duration": 1},
+        {"action": "default", "duration": 2}
+      ]
+    }
+  }
+} 

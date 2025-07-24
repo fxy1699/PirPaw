@@ -64,6 +64,16 @@ class ActionMapper:
                 "玩耍|游戏|娱乐|play": "play"
             },
             
+            # 表演动作映射
+            "performance_actions": {
+                "跳舞|舞蹈|dance|dancing": "dancing",
+                "唱歌|歌唱|sing|singing": "singing",
+                "表演|演出|show|perform": "dancing",
+                "飞行|飞|fly|flying": "flying",
+                "施法|魔法|magic|spell": "casting_spell",
+                "变身|变形|transform": "transforming"
+            },
+            
             # 交互动作映射
             "interactive_actions": {
                 "拍拍|摸摸|抚摸|pat|patpat": "patpat",

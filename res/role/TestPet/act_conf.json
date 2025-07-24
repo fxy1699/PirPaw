@@ -1,0 +1,95 @@
+{
+  "stand": {
+    "images": "stand",
+    "act_num": 1,
+    "frame_refresh": 0.5
+  },
+  
+  "sit": {
+    "images": "sit", 
+    "act_num": 1,
+    "frame_refresh": 0.8
+  },
+  
+  "walk_left": {
+    "images": "walk_left",
+    "act_num": 3,
+    "frame_refresh": 0.3,
+    "need_move": true,
+    "direction": "left"
+  },
+  
+  "walk_right": {
+    "images": "walk_right", 
+    "act_num": 3,
+    "frame_refresh": 0.3,
+    "need_move": true,
+    "direction": "right"
+  },
+  
+  "lying": {
+    "images": "lying",
+    "act_num": 1,
+    "frame_refresh": 1.0
+  },
+  
+  "dragged": {
+    "images": "dragged",
+    "act_num": 1, 
+    "frame_refresh": 0.2
+  },
+  
+  "falling": {
+    "images": "falling",
+    "act_num": 2,
+    "frame_refresh": 0.1
+  },
+  
+  "happy": {
+    "images": "happy",
+    "act_num": 4,
+    "frame_refresh": 0.4
+  },
+  
+  "concentrate": {
+    "images": "concentrate",
+    "act_num": 1,
+    "frame_refresh": 2.0
+  },
+  
+  "dancing": {
+    "images": "dancing",
+    "act_num": 6,
+    "frame_refresh": 0.5,
+    "description": "优美的舞蹈动作"
+  },
+  
+  "singing": {
+    "images": "singing", 
+    "act_num": 4,
+    "frame_refresh": 0.8,
+    "description": "动听的歌声"
+  },
+  
+  "flying": {
+    "images": "flying",
+    "act_num": 8,
+    "frame_refresh": 0.3,
+    "need_move": true,
+    "description": "在空中自由飞翔"
+  },
+  
+  "casting_spell": {
+    "images": "magic",
+    "act_num": 5,
+    "frame_refresh": 0.6,
+    "description": "施展神奇魔法"
+  },
+  
+  "transforming": {
+    "images": "transform",
+    "act_num": 10,
+    "frame_refresh": 0.4,
+    "description": "华丽的变身过程"
+  }
+} 

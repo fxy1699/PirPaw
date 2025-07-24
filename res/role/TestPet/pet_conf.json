@@ -1,0 +1,43 @@
+{
+  "default": "stand",
+  "up": "stand",
+  "down": "sit",
+  "left": "walk_left",
+  "right": "walk_right",
+  "drag": "dragged",
+  "fall": "falling",
+  "on_floor": "lying",
+  "patpat": "happy",
+  "focus": "concentrate",
+  
+  "custom_actions": {
+    "dance": "dancing",
+    "sing": "singing", 
+    "fly": "flying",
+    "magic": "casting_spell",
+    "transform": "transforming"
+  },
+  
+  "random_act": [
+    {
+      "name": "日常活动",
+      "act_list": ["stand", "walk_left", "walk_right", "sit"],
+      "prob": [0.4, 0.2, 0.2, 0.2],
+      "condition": {"hp": ">30"}
+    },
+    {
+      "name": "特殊表演", 
+      "act_list": ["dancing", "singing", "flying"],
+      "prob": [0.4, 0.3, 0.3],
+      "condition": {"fv": ">70"}
+    },
+    {
+      "name": "魔法技能",
+      "act_list": ["casting_spell", "transforming"],
+      "prob": [0.6, 0.4],
+      "condition": {"hp": ">50", "fv": ">60"}
+    }
+  ],
+  
+  "accessory_act": []
+} 
