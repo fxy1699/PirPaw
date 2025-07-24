@@ -21,20 +21,22 @@ class AgentCore:
         print(f"🚀 Agent系统启动完成，加载了 {len(self.modules)} 个模块")
 
     def load_config(self, config_path=None):
-        """加载配置文件，优先使用环境变量"""
+        """加载配置文件，优先使用环境变量，并合并 config.json"""
+        env_config = None
+        api_status = None
+        json_config = None
+
         # 首先尝试从环境变量加载
         try:
             from .config_loader import load_env_config, get_api_key_status
-            
+
             # 检查是否有.env文件或环境变量配置
-            env_config = load_env_config()
+            env_config = load_env_config()  # 加载默认 config.json
             api_status = get_api_key_status()
             
             # 如果有有效的API配置，使用环境变量配置
             if api_status["qwen_api"]["configured"]:
-                self.config = env_config
                 print(f"🌍 使用环境变量配置 (Qwen API: {'✅' if api_status['qwen_api']['valid_format'] else '⚠️'})")
-                return
             else:
                 print("💡 未检测到API密钥，回退到JSON配置文件")
                 
@@ -43,28 +45,39 @@ class AgentCore:
         except Exception as e:
             print(f"⚠️ 环境变量配置加载失败: {e}，使用JSON配置文件")
 
-        # 回退到JSON配置文件
+        # 加载 config.json
         if not config_path:
             config_path = os.path.join(os.path.dirname(__file__), "config.json")
 
         try:
             if os.path.exists(config_path):
                 with open(config_path, 'r', encoding='utf-8') as f:
-                    self.config = json.load(f)
+                    json_config = json.load(f)
                 print(f"📄 JSON配置文件加载完成: {config_path}")
             else:
                 # 创建默认配置
-                self.config = self.get_default_config()
+                json_config = self.get_default_config()
                 self.save_config(config_path)
                 print(f"📄 创建默认配置文件: {config_path}")
         except Exception as e:
             print(f"❌ 配置文件加载失败: {e}")
-            self.config = self.get_default_config()
+            json_config = self.get_default_config()
+
+        # 合并配置
+        if json_config:
+            self.config = json_config
+            # print(f"[DEBUG] config: {json.dumps(self.config, indent=4)}")
+            print(f"🌍 使用环境变量配置 (Qwen API: {'✅' if api_status['qwen_api']['valid_format'] else '⚠️'})，并已加载 config.json")
+        elif env_config:
+            self.config = env_config
+            print("使用默认配置")
+        else:
+            print("❌ 配置文件加载失败：.env 或者 config.json 不存在")
 
     def get_default_config(self):
         """获取默认配置"""
         return {
-            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker"],
+            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "dreamgeneration"],
             "global_settings": {
                 "language": "zh-CN",
                 "debug_mode": False
@@ -131,7 +144,6 @@ class AgentCore:
         for module in discovered_modules:
             # 检查模块是否在启用列表中
             module_key = module.__class__.__name__.lower().replace('module', '')
-
             if module_key in enabled_modules:
                 # 获取模块特定配置
                 module_config = module_configs.get(module_key, {})
