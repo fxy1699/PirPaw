@@ -20,7 +20,7 @@ from .behaviors import BehaviorExecutor
 
 
 class AutonomousPetModule(BaseModule):
-    """自主宠物模块 - 让宠物具有自我意识和主动行为"""
+    """自主宠物模块 - 让宠物具有情感、记忆、主动思考和行为的能力"""
     
     name = "自主宠物"
     description = "让宠物具有情感、记忆、主动思考和行为的能力"
@@ -37,9 +37,17 @@ class AutonomousPetModule(BaseModule):
         self.scheduler = None
         self.behavior_executor = None
         
+        # DyberPet集成
+        self.bubble_manager = None
+        
         # 运行状态
         self.is_running = False
         self.scheduler_thread = None
+        
+        # Debug模式
+        self.debug_mode = False
+        self.debug_thread = None
+        self.debug_running = False
         
         # 配置
         self.autonomous_enabled = True
@@ -49,6 +57,20 @@ class AutonomousPetModule(BaseModule):
     def setup(self, config=None):
         """初始化模块"""
         self.config = config or {}
+        
+        # 从DyberPet设置中加载配置
+        try:
+            import DyberPet.settings as dyber_settings
+            if hasattr(dyber_settings, 'autonomous_enabled'):
+                self.config.update({
+                    'autonomous_enabled': dyber_settings.autonomous_enabled,
+                    'min_interval_minutes': dyber_settings.autonomous_min_interval,
+                    'max_interval_minutes': dyber_settings.autonomous_max_interval,
+                    'debug_mode': dyber_settings.autonomous_debug
+                })
+                print(f"📋 从DyberPet设置加载配置: {self.config}")
+        except Exception as e:
+            print(f"⚠️ 加载DyberPet设置失败，使用默认配置: {e}")
         
         try:
             # 初始化记忆系统
@@ -95,10 +117,37 @@ class AutonomousPetModule(BaseModule):
         """应用配置设置"""
         cfg = self.config
         
+        # Debug模式设置
+        old_debug_mode = getattr(self, 'debug_mode', False)
+        self.debug_mode = cfg.get('debug_mode', False)
+        
+        if self.debug_mode and not old_debug_mode:
+            print("🐛 Debug模式已启用 - 将每10秒显示情绪数值")
+            self.start_debug_monitor()
+        elif not self.debug_mode and old_debug_mode:
+            print("🐛 Debug模式已关闭")
+            self.stop_debug_monitor()
+        
         # 自主行为设置
+        old_enabled = getattr(self, 'autonomous_enabled', True)
         self.autonomous_enabled = cfg.get('autonomous_enabled', True)
         self.min_interval_minutes = cfg.get('min_interval_minutes', 5)
         self.max_interval_minutes = cfg.get('max_interval_minutes', 30)
+        
+        # 如果自主行为状态发生变化，重新启动或停止
+        if self.autonomous_enabled != old_enabled:
+            if self.autonomous_enabled:
+                print("🔄 自主行为已启用，重新启动...")
+                self.start_autonomous_behavior()
+            else:
+                print("⏸️ 自主行为已禁用，停止运行...")
+                self.stop_autonomous_behavior()
+        
+        # 更新调度器的间隔设置
+        if hasattr(self, 'scheduler') and self.scheduler:
+            self.scheduler.min_interval = self.min_interval_minutes
+            self.scheduler.max_interval = self.max_interval_minutes
+            print(f"⏰ 思考间隔已更新: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
         
         # 情感设置
         if 'emotion_decay_speed' in cfg:
@@ -134,6 +183,117 @@ class AutonomousPetModule(BaseModule):
         if self.scheduler_thread and self.scheduler_thread.is_alive():
             self.scheduler_thread.join(timeout=5)
         print("⏹️ 自主行为系统已停止")
+        
+        # 同时停止debug监控
+        if self.debug_running:
+            self.stop_debug_monitor()
+    
+    def start_debug_monitor(self):
+        """启动debug监控"""
+        if self.debug_running:
+            return
+            
+        self.debug_running = True
+        self.debug_thread = threading.Thread(target=self._debug_monitor_loop, daemon=True)
+        self.debug_thread.start()
+        print("🐛 Debug监控已启动 - 每10秒显示情绪状态")
+    
+    def stop_debug_monitor(self):
+        """停止debug监控"""
+        self.debug_running = False
+        if self.debug_thread and self.debug_thread.is_alive():
+            self.debug_thread.join(timeout=1)
+        print("🐛 Debug监控已停止")
+    
+    def _debug_monitor_loop(self):
+        """Debug监控循环"""
+        while self.debug_running:
+            try:
+                if self.emotions:
+                    self._print_emotion_status()
+                time.sleep(10)  # 每10秒检查一次
+            except Exception as e:
+                print(f"❌ Debug监控出错: {e}")
+                time.sleep(10)
+    
+    def _print_emotion_status(self):
+        """打印情绪状态"""
+        try:
+            if not self.emotions:
+                print("⚠️ 情绪系统未初始化")
+                return
+                
+            current_time = datetime.now().strftime("%H:%M:%S")
+            emotions = self.emotions.get_current_emotions()
+            
+            print(f"\n🐛 [DEBUG {current_time}] 当前情绪状态:")
+            print(f"   😊 快乐度: {emotions.get('happiness', 0):.1f}")
+            print(f"   ⚡ 活力值: {emotions.get('energy', 0):.1f}")
+            print(f"   😴 无聊度: {emotions.get('boredom', 0):.1f}")
+            print(f"   🤔 好奇心: {emotions.get('curiosity', 0):.1f}")
+            print(f"   😢 孤独感: {emotions.get('loneliness', 0):.1f}")
+            
+            # 显示主导情绪
+            try:
+                dominant_emotion = self.emotions.get_dominant_emotion()
+                dominant_value = emotions.get(dominant_emotion, 0)
+                print(f"   🎯 主导情绪: {dominant_emotion} ({dominant_value:.1f})")
+            except Exception as e:
+                print(f"   🎯 主导情绪: 获取失败 ({e})")
+            
+            # 显示自主行为状态
+            print(f"   🔄 自主行为: {'开启' if self.autonomous_enabled else '关闭'}")
+            print(f"   ⏱️ 思考间隔: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
+            
+            # 计算下次行为时间（不显示错误）
+            try:
+                if hasattr(self.scheduler, 'next_behavior_time') and self.scheduler.next_behavior_time:
+                    next_time = self.scheduler.next_behavior_time.strftime("%H:%M:%S")
+                    time_left = (self.scheduler.next_behavior_time - datetime.now()).total_seconds()
+                    if time_left > 0:
+                        minutes_left = int(time_left // 60)
+                        seconds_left = int(time_left % 60)
+                        print(f"   ⏰ 下次行为: {next_time} (还有 {minutes_left}分{seconds_left}秒)")
+                    else:
+                        print(f"   ⏰ 下次行为: 即将执行")
+                else:
+                    print(f"   ⏰ 下次行为: 未安排")
+            except:
+                print(f"   ⏰ 下次行为: 计算中...")
+            
+            # 显示行为状态（不显示错误）
+            try:
+                if hasattr(self.behavior_executor, 'last_behavior_time') and self.behavior_executor.last_behavior_time:
+                    last_time = self.behavior_executor.last_behavior_time.strftime("%H:%M:%S")
+                    print(f"   🎭 上次行为: {last_time}")
+                else:
+                    print(f"   🎭 上次行为: 无")
+            except:
+                print(f"   🎭 上次行为: 未知")
+            
+            # 显示记忆统计（不显示错误）
+            try:
+                if self.memory:
+                    interaction_count = len(self.memory.get_recent_interactions(hours=24))
+                    print(f"   🧠 24小时内互动: {interaction_count} 次")
+                else:
+                    print(f"   🧠 24小时内互动: 记忆未初始化")
+            except:
+                print(f"   🧠 24小时内互动: 统计中...")
+            
+            print("─" * 50)
+            
+        except Exception as e:
+            # 只在第一次失败时显示详细错误，之后简化显示
+            if not hasattr(self, '_debug_error_count'):
+                self._debug_error_count = 0
+            
+            self._debug_error_count += 1
+            if self._debug_error_count <= 3:
+                print(f"❌ Debug监控出错 ({self._debug_error_count}/3): {e}")
+            elif self._debug_error_count == 4:
+                print("⚠️ Debug监控持续出错，后续将静默处理")
+            # 超过3次后静默处理
     
     def _autonomous_behavior_loop(self):
         """自主行为主循环"""
@@ -341,6 +501,35 @@ class AutonomousPetModule(BaseModule):
                 
         except Exception as e:
             return f"❌ 强制行为执行出错: {e}"
+    
+    def connect_to_bubble_system(self, bubble_manager):
+        """连接到DyberPet气泡系统"""
+        try:
+            self.bubble_manager = bubble_manager
+            
+            # 设置气泡回调
+            if self.behavior_executor:
+                self.behavior_executor.set_bubble_callback(self._trigger_bubble)
+                print("✅ 自主宠物已连接到气泡系统")
+                return True
+            else:
+                print("❌ 行为执行器未初始化，无法连接气泡系统")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 连接气泡系统失败: {e}")
+            return False
+    
+    def _trigger_bubble(self, bubble_dict):
+        """触发气泡显示"""
+        try:
+            if self.bubble_manager:
+                self.bubble_manager.register_bubble.emit(bubble_dict)
+                print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
+            else:
+                print("⚠️ 气泡管理器未连接")
+        except Exception as e:
+            print(f"❌ 触发气泡失败: {e}")
     
     def get_emotion_report(self) -> str:
         """获取情感报告"""

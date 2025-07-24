@@ -74,6 +74,12 @@ class EmotionSystem:
                 new_val = self.emotions[emotion]
                 print(f"   {self._emotion_emoji(emotion)} {emotion}: {old_val:.2f} → {new_val:.2f} ({change:+.2f})")
     
+    def get_current_emotions(self) -> dict:
+        """获取当前所有情感状态"""
+        # 首先更新情感状态
+        self.update_emotions()
+        return self.emotions.copy()
+    
     def get_dominant_emotion(self) -> str:
         """获取当前主导情感"""
         # 加权计算主导情感

@@ -111,6 +111,9 @@ class DyberPetAgentIntegration:
             if success:
                 print("🔗 pet_action模块已连接到DyberPet")
                 
+                # 连接自主宠物模块到气泡系统
+                self._connect_autonomous_pet_to_bubble()
+                
                 # 测试连接
                 test_result = self.pet_action_module.handle_message("现在的状态")
                 print(f"📋 连接测试结果: {test_result}")
@@ -184,6 +187,49 @@ class DyberPetAgentIntegration:
                 # 重新检查DyberPet连接状态
                 self.pet_action_module._check_dyberpet_connection()
     
+    def _connect_autonomous_pet_to_bubble(self):
+        """连接自主宠物模块到气泡系统"""
+        try:
+            if not self.agent_core or not self.pet_widget:
+                print("⚠️ Agent核心或宠物窗口未准备好，跳过自主宠物气泡连接")
+                return False
+            
+            # 查找自主宠物模块
+            autonomous_pet_module = None
+            for module in self.agent_core.modules:
+                if hasattr(module, 'name') and '自主宠物' in module.name:
+                    autonomous_pet_module = module
+                    break
+            
+            if not autonomous_pet_module:
+                print("💡 未找到自主宠物模块，跳过气泡连接")
+                return False
+            
+            if not autonomous_pet_module.initialized:
+                print("💡 自主宠物模块未初始化，跳过气泡连接")
+                return False
+            
+            # 获取DyberPet的气泡管理器
+            bubble_manager = getattr(self.pet_widget, 'bubble_manager', None)
+            if not bubble_manager:
+                print("❌ 未找到DyberPet气泡管理器")
+                return False
+            
+            # 连接自主宠物到气泡系统
+            success = autonomous_pet_module.connect_to_bubble_system(bubble_manager)
+            if success:
+                print("🎈 自主宠物已成功连接到气泡系统")
+                return True
+            else:
+                print("❌ 自主宠物连接气泡系统失败")
+                return False
+                
+        except Exception as e:
+            print(f"❌ 连接自主宠物到气泡系统时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def execute_action_from_external(self, action_command: str) -> str:
         """
         从外部执行动作（用于其他模块调用）
@@ -363,4 +409,14 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print("\n🛑 用户中断，关闭集成系统")
         manager = get_integration_manager()
-        manager.shutdown() 
+        manager.shutdown()
+
+
+def get_agent_core():
+    """获取当前的AgentCore实例"""
+    try:
+        manager = get_integration_manager()
+        return manager.agent_core if manager else None
+    except Exception as e:
+        print(f"❌ 获取AgentCore失败: {e}")
+        return None 

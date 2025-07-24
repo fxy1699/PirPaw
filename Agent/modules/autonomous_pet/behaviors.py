@@ -14,9 +14,10 @@ class BehaviorExecutor:
         self.memory = memory_manager
         self.emotions = emotion_system
         
-        # 可以接入聊天窗口或其他UI组件
+        # UI接口
         self.chat_interface = None
         self.ui_callback = None
+        self.bubble_callback = None  # 新增：气泡接口
         
     def set_chat_interface(self, chat_interface):
         """设置聊天界面接口"""
@@ -25,6 +26,10 @@ class BehaviorExecutor:
     def set_ui_callback(self, callback):
         """设置UI回调函数"""
         self.ui_callback = callback
+    
+    def set_bubble_callback(self, bubble_callback):
+        """设置气泡回调函数"""
+        self.bubble_callback = bubble_callback
     
     def execute_behavior(self, action_plan: Dict[str, Any]) -> bool:
         """执行行为计划"""
@@ -53,16 +58,27 @@ class BehaviorExecutor:
         # 输出到控制台（总是执行）
         print(f"🐱 宠物说: {display_message}")
         
-        # 如果有聊天界面，发送到界面
         success = True
-        if self.chat_interface:
+        
+        # 优先使用气泡系统显示
+        if self.bubble_callback:
+            try:
+                bubble_dict = self._create_bubble_dict(action_type, content, display_message)
+                self.bubble_callback(bubble_dict)
+                print(f"✅ 已通过气泡显示: {display_message}")
+            except Exception as e:
+                print(f"⚠️ 气泡显示失败: {e}")
+                success = False
+        
+        # 备用：聊天界面显示
+        elif self.chat_interface:
             try:
                 self.chat_interface.add_bot_message(display_message)
             except Exception as e:
                 print(f"⚠️ 发送到聊天界面失败: {e}")
                 success = False
         
-        # 如果有UI回调，调用它
+        # 通用UI回调
         if self.ui_callback:
             try:
                 self.ui_callback('pet_message', display_message)
@@ -96,12 +112,31 @@ class BehaviorExecutor:
         # 显示反馈
         print(f"🐱 宠物说: {feedback}")
         
-        if self.chat_interface:
+        success = True
+        
+        # 优先使用气泡显示工具调用结果
+        if self.bubble_callback:
+            try:
+                bubble_dict = {
+                    'message': feedback,
+                    'bubble_type': f'autonomous_tool_{tool}',
+                    'icon': 'system',
+                    'start_audio': 'system',
+                    'end_audio': None
+                }
+                self.bubble_callback(bubble_dict)
+                print(f"✅ 工具调用结果已通过气泡显示")
+            except Exception as e:
+                print(f"⚠️ 气泡显示工具调用结果失败: {e}")
+                success = False
+        
+        # 备用：聊天界面显示
+        elif self.chat_interface:
             try:
                 self.chat_interface.add_bot_message(feedback)
             except Exception as e:
                 print(f"⚠️ 发送工具调用结果失败: {e}")
-                return False
+                success = False
         
         # 记录工具调用
         if self.memory:
@@ -109,10 +144,10 @@ class BehaviorExecutor:
                 interaction_type='tool_call',
                 content=f"使用工具: {tool}",
                 response=feedback,
-                success=True
+                success=success
             )
         
-        return True
+        return success
     
     def _format_behavior_message(self, action_type: str, content: str) -> str:
         """格式化行为消息"""
@@ -128,6 +163,37 @@ class BehaviorExecutor:
         
         prefix = prefixes.get(action_type, '🐱 ')
         return f"{prefix}{content}"
+    
+    def _create_bubble_dict(self, action_type: str, content: str, display_message: str) -> Dict[str, Any]:
+        """创建气泡数据字典"""
+        # 根据行为类型选择图标和音效
+        icon_mapping = {
+            'seek_attention': 'system',
+            'self_talk': None,
+            'greet': 'system', 
+            'care': 'system',
+            'explore': 'system',
+            'rest': None,
+            'play': 'system'
+        }
+        
+        audio_mapping = {
+            'seek_attention': 'system',
+            'greet': 'system',
+            'care': 'system',
+            'play': 'system'
+        }
+        
+        # 构造气泡字典
+        bubble_dict = {
+            'message': content,  # 原始内容，不带emoji前缀
+            'bubble_type': f'autonomous_{action_type}',  # 自主行为气泡类型
+            'icon': icon_mapping.get(action_type),
+            'start_audio': audio_mapping.get(action_type),
+            'end_audio': None
+        }
+        
+        return bubble_dict
     
     def _simulate_tool_call(self, tool: str) -> Dict[str, Any]:
         """模拟工具调用（简单版本）"""

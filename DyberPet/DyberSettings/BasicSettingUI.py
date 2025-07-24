@@ -199,6 +199,57 @@ class SettingInterface(ScrollArea):
         )
         self.themeColorCard.colorChanged.connect(self.colorChanged)
 
+        # Agent自主宠物 ==============================================================================
+        self.AutonomousGroup = SettingCardGroup(self.tr('Autonomous Pet'), self.scrollWidget)
+        
+        # 启用自主行为
+        self.AutonomousEnabledCard = SwitchSettingCard(
+            QIcon(os.path.join(basedir, 'res/icons/system/homestar.svg')),
+            self.tr("Enable Autonomous Behavior"),
+            self.tr("Allow pet to think and act autonomously"),
+            parent=self.AutonomousGroup
+        )
+        if settings.autonomous_enabled:
+            self.AutonomousEnabledCard.setChecked(True)
+        else:
+            self.AutonomousEnabledCard.setChecked(False)
+        self.AutonomousEnabledCard.switchButton.checkedChanged.connect(self._AutonomousEnabledChanged)
+        
+        # 思考间隔（最小）
+        self.AutonomousMinIntervalCard = Dyber_RangeSettingCard(
+            1, 60, 1,
+            QIcon(os.path.join(basedir, 'res/icons/Timer_icon.png')),
+            self.tr("Min Think Interval"),
+            self.tr("Minimum time between autonomous thoughts (minutes)"),
+            parent=self.AutonomousGroup
+        )
+        self.AutonomousMinIntervalCard.setValue(settings.autonomous_min_interval)
+        self.AutonomousMinIntervalCard.slider.valueChanged.connect(self._AutonomousMinIntervalChanged)
+        
+        # 思考间隔（最大）
+        self.AutonomousMaxIntervalCard = Dyber_RangeSettingCard(
+            5, 120, 1,
+            QIcon(os.path.join(basedir, 'res/icons/Timer_icon.png')),
+            self.tr("Max Think Interval"),
+            self.tr("Maximum time between autonomous thoughts (minutes)"),
+            parent=self.AutonomousGroup
+        )
+        self.AutonomousMaxIntervalCard.setValue(settings.autonomous_max_interval)
+        self.AutonomousMaxIntervalCard.slider.valueChanged.connect(self._AutonomousMaxIntervalChanged)
+        
+        # Debug模式
+        self.AutonomousDebugCard = SwitchSettingCard(
+            QIcon(os.path.join(basedir, 'res/icons/system/more.svg')),
+            self.tr("Debug Mode"),
+            self.tr("Show emotion values every 10 seconds in console"),
+            parent=self.AutonomousGroup
+        )
+        if settings.autonomous_debug:
+            self.AutonomousDebugCard.setChecked(True)
+        else:
+            self.AutonomousDebugCard.setChecked(False)
+        self.AutonomousDebugCard.switchButton.checkedChanged.connect(self._AutonomousDebugChanged)
+
         # About ==============================================================================
         self.aboutGroup = SettingCardGroup(self.tr('About'), self.scrollWidget)
         update_needed, update_text = self._checkUpdate()
@@ -266,6 +317,11 @@ class SettingInterface(ScrollArea):
         self.PersonalGroup.addSettingCard(self.languageCard)
         self.PersonalGroup.addSettingCard(self.themeColorCard)
 
+        self.AutonomousGroup.addSettingCard(self.AutonomousEnabledCard)
+        self.AutonomousGroup.addSettingCard(self.AutonomousMinIntervalCard)
+        self.AutonomousGroup.addSettingCard(self.AutonomousMaxIntervalCard)
+        self.AutonomousGroup.addSettingCard(self.AutonomousDebugCard)
+
         self.aboutGroup.addSettingCard(self.aboutCard)
         self.aboutGroup.addSettingCard(self.helpCard)
         self.aboutGroup.addSettingCard(self.devCard)
@@ -278,6 +334,7 @@ class SettingInterface(ScrollArea):
         self.expandLayout.addWidget(self.InteractionGroup)
         self.expandLayout.addWidget(self.VolumnGroup)
         self.expandLayout.addWidget(self.PersonalGroup)
+        self.expandLayout.addWidget(self.AutonomousGroup)
         self.expandLayout.addWidget(self.aboutGroup)
 
     def __setQss(self):
@@ -345,6 +402,68 @@ class SettingInterface(ScrollArea):
         #self.retranslateUi()
         self.__showRestartTooltip()
         self.lang_changed.emit()
+    
+    def _AutonomousEnabledChanged(self, isChecked):
+        settings.autonomous_enabled = isChecked
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
+    def _AutonomousMinIntervalChanged(self, value):
+        settings.autonomous_min_interval = value
+        # 确保最小间隔不大于最大间隔
+        if value > settings.autonomous_max_interval:
+            settings.autonomous_max_interval = value
+            self.AutonomousMaxIntervalCard.setValue(value)
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
+    def _AutonomousMaxIntervalChanged(self, value):
+        settings.autonomous_max_interval = value
+        # 确保最大间隔不小于最小间隔
+        if value < settings.autonomous_min_interval:
+            settings.autonomous_min_interval = value
+            self.AutonomousMinIntervalCard.setValue(value)
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
+    def _AutonomousDebugChanged(self, isChecked):
+        settings.autonomous_debug = isChecked
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
+    def _notifyAutonomousChange(self):
+        """通知自主宠物系统配置已更改"""
+        try:
+            # 尝试获取自主宠物模块并更新配置
+            from Agent.dyberpet_agent_integration import get_agent_core
+            
+            agent_core = get_agent_core()
+            if agent_core and hasattr(agent_core, 'modules'):
+                # agent_core.modules 是一个列表，不是字典
+                for module in agent_core.modules:
+                    if hasattr(module, 'name') and '自主宠物' in module.name:
+                        # 更新模块配置
+                        new_config = {
+                            'autonomous_enabled': settings.autonomous_enabled,
+                            'min_interval_minutes': settings.autonomous_min_interval,
+                            'max_interval_minutes': settings.autonomous_max_interval,
+                            'debug_mode': settings.autonomous_debug
+                        }
+                        module.config.update(new_config)
+                        
+                        # 重新应用配置
+                        if hasattr(module, '_apply_config'):
+                            module._apply_config()
+                            print(f"✅ 自主宠物设置已更新: {new_config}")
+                        break
+                else:
+                    print("⚠️ 未找到自主宠物模块")
+            else:
+                print("⚠️ Agent系统未运行，设置已保存，将在下次启动时生效")
+        except ImportError:
+            print("⚠️ Agent系统未安装，设置已保存")
+        except Exception as e:
+            print(f"⚠️ 更新自主宠物设置失败: {e}")
     
     def __showRestartTooltip(self):
         """ show restart tooltip """
