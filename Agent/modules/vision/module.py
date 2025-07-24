@@ -116,8 +116,10 @@ class VisionModule(BaseModule):
 
             self.last_screenshot = screenshot
 
-            # 保存到screenshots文件夹
+            # 保存到screenshots文件夹（按天分文件夹）
             save_dir = os.path.join(os.getcwd(), 'screenshots')
+            day_folder = datetime.now().strftime('%Y%m%d')
+            save_dir = os.path.join(save_dir, day_folder)
             os.makedirs(save_dir, exist_ok=True)
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             save_path = os.path.join(save_dir, f'screenshot_{timestamp}.png')
