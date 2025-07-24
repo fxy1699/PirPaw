@@ -33,7 +33,7 @@ def load_env_config() -> Dict[str, Any]:
     
     # 构建配置字典
     config = {
-        "enabled_modules": get_env_list("ENABLED_MODULES", ["chat", "vision", "camera", "tools", "tracker"]),
+        "enabled_modules": get_env_list("ENABLED_MODULES", ["chat", "vision", "camera", "tools", "tracker", "petaction"]),
         "global_settings": {
             "language": get_env_str("LANGUAGE", "zh-CN"),
             "debug_mode": get_env_bool("DEBUG_MODE", False),
@@ -74,6 +74,17 @@ def load_env_config() -> Dict[str, Any]:
                 "tracking_interval": get_env_int("TRACKING_INTERVAL", 5),
                 "auto_start": get_env_bool("AUTO_START_TRACKING", False),
                 "show_detailed_windows": True
+            },
+            "petaction": {
+                "auto_scan_pets": get_env_bool("PETACTION_AUTO_SCAN", True),
+                "default_pet": get_env_str("PETACTION_DEFAULT_PET", None),
+                "dyber_pet_root": get_env_str("PETACTION_ROOT", None),
+                "enable_fuzzy_matching": get_env_bool("PETACTION_FUZZY_MATCH", True),
+                "confidence_threshold": get_env_float("PETACTION_CONFIDENCE", 0.6),
+                "max_action_queue": get_env_int("PETACTION_MAX_QUEUE", 10),
+                "action_timeout": get_env_int("PETACTION_TIMEOUT", 30),
+                "enable_context_awareness": get_env_bool("PETACTION_CONTEXT", True),
+                "response_style": get_env_str("PETACTION_STYLE", "friendly")
             }
         }
     }
@@ -102,6 +113,14 @@ def get_env_bool(key: str, default: bool = False) -> bool:
     elif value in ("false", "0", "no", "off"):
         return False
     else:
+        return default
+
+
+def get_env_float(key: str, default: float = 0.0) -> float:
+    """获取浮点数环境变量"""
+    try:
+        return float(os.getenv(key, str(default)))
+    except (ValueError, TypeError):
         return default
 
 

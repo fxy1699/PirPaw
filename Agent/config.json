@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "pet_action"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -42,7 +42,7 @@
       "auto_start": false,
       "show_detailed_windows": true
     },
-    "pet_action": {
+    "petaction": {
       "auto_scan_pets": true,
       "default_pet": null,
       "dyber_pet_root": null,
