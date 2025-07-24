@@ -209,16 +209,22 @@ if __name__ == '__main__':
         
         if integration_success:
             print("🎉 Agent系统已成功集成到DyberPet!")
-            print("💬 现在可以通过自然语言控制宠物了:")
-            print("   • 在聊天中输入 '让小猫睡觉' 来控制动作")
+            print("💬 现在可以通过聊天窗口控制宠物了:")
+            print("   • 右键宠物 → 选择'智能聊天'")
+            print("   • 输入 '让小猫睡觉' 来控制动作")
             print("   • 输入 '现在的状态' 查看宠物信息")
             print("   • 输入 '走路' 或 '跳舞' 等动作指令")
+            
+            # 添加聊天窗口到应用
+            app.chat_integration_success = True
         else:
             print("⚠️ Agent系统集成失败，但DyberPet正常运行")
+            app.chat_integration_success = False
             
     except Exception as e:
         print(f"⚠️ Agent系统集成时出错: {e}")
         print("💡 DyberPet将正常运行，但无Agent功能")
+        app.chat_integration_success = False
     # =========================================
 
     sys.exit(app.exec())

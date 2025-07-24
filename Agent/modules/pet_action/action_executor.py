@@ -482,14 +482,11 @@ class ActionExecutor:
         """
         # 优先使用DyberPet桥接器
         bridge_connected = self.bridge.is_connected()
-        print(f"🔍 桥接器连接状态检查: {bridge_connected}")
         
         # 如果桥接器未连接，尝试重新连接
         if not bridge_connected:
-            print(f"⚠️ 桥接器未连接，尝试重新连接...")
             self._try_reconnect()
             bridge_connected = self.bridge.is_connected()
-            print(f"🔄 重连后状态: {bridge_connected}")
         
         if bridge_connected:
             try:

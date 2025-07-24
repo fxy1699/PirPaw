@@ -398,6 +398,10 @@ class PetWidget(QWidget):
             self.curr_pet_name = settings.default_pet
         else:
             self.curr_pet_name = curr_pet_name
+            
+        # Agent聊天窗口
+        self.chat_window = None
+        self.agent_module = None
         #self.pet_conf = PetConfig()
 
         self.image = None
@@ -1009,11 +1013,26 @@ class PetWidget(QWidget):
         self.StatMenu.addSeparator()
 
         #self.StatMenu.addMenu(self.menu)
+        # 检查Agent聊天功能是否可用
+        chat_actions = []
+        app_instance = QApplication.instance()
+        has_attr = hasattr(app_instance, 'chat_integration_success')
+        is_enabled = getattr(app_instance, 'chat_integration_success', False) if has_attr else False
+        
+        print(f"🔍 菜单构建检查: has_attr={has_attr}, is_enabled={is_enabled}")
+        
+        if has_attr and is_enabled:
+            print("✅ 添加智能聊天菜单项")
+            chat_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/Dialogue_icon.png')), 
+                                     self.tr('智能聊天'), triggered=self._show_chat_window))
+        else:
+            print("❌ 不添加智能聊天菜单项")
+        
         self.StatMenu.addActions([
             #Action(FIF.MENU, self.tr('More Options'), triggered=self._show_right_menu),
             Action(QIcon(os.path.join(basedir,'res/icons/dashboard.svg')), self.tr('Dashboard'), triggered=self._show_dashboard),
             Action(QIcon(os.path.join(basedir,'res/icons/SystemPanel.png')), self.tr('System'), triggered=self._show_controlPanel),
-        ])
+        ] + chat_actions)
         self.StatMenu.addSeparator()
 
         self.StatMenu.addMenu(self.act_menu)
@@ -1683,6 +1702,124 @@ class PetWidget(QWidget):
 
     def _show_dashboard(self):
         self.show_dashboard.emit()
+    
+    def _show_chat_window(self):
+        """显示智能聊天窗口"""
+        print("🎯 _show_chat_window 被调用")
+        try:
+            # 如果聊天窗口还没创建，创建它
+            if self.chat_window is None:
+                print("🆕 创建新的聊天窗口")
+                from .chat_window import ChatWindow
+                self.chat_window = ChatWindow(self)
+                
+                # 尝试获取Agent模块
+                if self.agent_module is None:
+                    self._find_agent_module()
+                
+                # 连接Agent
+                if self.agent_module:
+                    self.chat_window.set_agent_executor(self.agent_module)
+                    print("✅ Agent模块已连接到聊天窗口")
+                else:
+                    print("⚠️ 未找到Agent模块")
+            else:
+                print("🔄 使用现有聊天窗口")
+            
+            # 检查聊天窗口是否已经可见
+            if self.chat_window.isVisible():
+                print("👁️ 聊天窗口已经可见，激活窗口")
+                self.chat_window.raise_()
+                self.chat_window.activateWindow()
+                return
+            
+            # 计算聊天窗口位置（在小猫右侧）
+            pet_pos = self.pos()
+            pet_size = self.size()
+            chat_size = self.chat_window.size()
+            
+            # 设置聊天窗口在小猫右侧
+            chat_x = pet_pos.x() + pet_size.width() + 20  # 右侧留20像素间距
+            chat_y = pet_pos.y()
+            
+            # 确保聊天窗口不超出屏幕范围
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+            
+            if chat_x + chat_size.width() > screen_geometry.right():
+                # 如果右侧超出屏幕，放在左侧
+                chat_x = pet_pos.x() - chat_size.width() - 20
+            
+            if chat_y + chat_size.height() > screen_geometry.bottom():
+                # 如果底部超出屏幕，向上调整
+                chat_y = screen_geometry.bottom() - chat_size.height()
+            
+            if chat_y < screen_geometry.top():
+                chat_y = screen_geometry.top()
+            
+            # 设置位置并显示
+            print(f"📍 设置聊天窗口位置: ({chat_x}, {chat_y})")
+            self.chat_window.move(chat_x, chat_y)
+            
+            print("👁️ 显示聊天窗口...")
+            self.chat_window.show()
+            self.chat_window.raise_()
+            self.chat_window.activateWindow()
+            
+            # 验证窗口是否真正显示
+            import time
+            QApplication.processEvents()  # 处理待处理的事件
+            time.sleep(0.1)  # 短暂等待
+            
+            if self.chat_window.isVisible():
+                print(f"✅ 聊天窗口已成功显示在位置: ({chat_x},{chat_y})")
+                print(f"🔍 窗口大小: {self.chat_window.size().width()}x{self.chat_window.size().height()}")
+                print(f"🔍 窗口状态: visible={self.chat_window.isVisible()}, active={self.chat_window.isActiveWindow()}")
+            else:
+                print("❌ 聊天窗口显示失败！尝试强制显示...")
+                # 尝试强制显示
+                self.chat_window.force_show()
+                self.chat_window.move(chat_x, chat_y)  # 重新设置位置
+                
+                # 再次检查
+                QApplication.processEvents()
+                if self.chat_window.isVisible():
+                    print("✅ 强制显示成功！")
+                else:
+                    print("❌ 强制显示也失败了！")
+                
+            print(f"🎯 聊天窗口位置: 小猫({pet_pos.x()},{pet_pos.y()}) -> 聊天框({chat_x},{chat_y})")
+            
+        except Exception as e:
+            print(f"❌ 打开聊天窗口失败: {e}")
+            # 显示错误对话框
+            from qfluentwidgets import MessageBox
+            w = MessageBox(
+                "聊天功能错误",
+                f"无法打开聊天窗口：{e}",
+                self
+            )
+            w.exec()
+    
+    def _find_agent_module(self):
+        """查找Agent模块"""
+        try:
+            # 从应用实例获取集成管理器
+            app = QApplication.instance()
+            if hasattr(app, 'chat_integration_success') and app.chat_integration_success:
+                from Agent.dyberpet_agent_integration import get_integration_manager
+                manager = get_integration_manager()
+                
+                if manager.pet_action_module:
+                    self.agent_module = manager.pet_action_module
+                    print("✅ 找到Agent宠物控制模块")
+                else:
+                    print("⚠️ Agent集成管理器中没有宠物控制模块")
+            else:
+                print("⚠️ Agent系统未正确集成")
+                
+        except Exception as e:
+            print(f"❌ 查找Agent模块失败: {e}")
 
     '''
     def show_compday(self):

@@ -115,6 +115,24 @@ class DyberPetAgentIntegration:
                 test_result = self.pet_action_module.handle_message("现在的状态")
                 print(f"📋 连接测试结果: {test_result}")
                 
+                # 刷新DyberPet菜单以显示聊天功能
+                try:
+                    print("🔄 刷新DyberPet菜单以添加聊天功能...")
+                    
+                    # 先设置集成成功标志
+                    if self.dyberpet_app:
+                        self.dyberpet_app.chat_integration_success = True
+                        print("✅ 已设置chat_integration_success标志")
+                    
+                    # 再刷新菜单
+                    if hasattr(self.pet_widget, '_set_Statusmenu'):
+                        self.pet_widget._set_Statusmenu()
+                        print("✅ DyberPet菜单已刷新，聊天功能已添加")
+                    else:
+                        print("⚠️ 无法找到_set_Statusmenu方法")
+                except Exception as e:
+                    print(f"⚠️ 刷新菜单失败: {e}")
+                
                 return True
             else:
                 print("❌ pet_action模块连接失败")

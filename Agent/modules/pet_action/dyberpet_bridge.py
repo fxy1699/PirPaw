@@ -220,12 +220,6 @@ class DyberPetBridge:
                     self.pet_widget is not None and 
                     self.app_instance is not None)
         
-        if not connected:
-            print(f"🔍 桥接器连接检查失败:")
-            print(f"   状态: {self.status}")
-            print(f"   pet_widget: {self.pet_widget is not None}")
-            print(f"   app_instance: {self.app_instance is not None}")
-        
         return connected
     
     def get_connection_status(self) -> ConnectionStatus:
@@ -254,43 +248,38 @@ class DyberPetBridge:
         
         try:
             print(f"🎭 执行DyberPet动作: {action_name}")
-            print(f"🔍 pet_widget: {self.pet_widget}")
-            print(f"🔍 pet_widget类型: {type(self.pet_widget)}")
             
             # 调用DyberPet的动作执行方法
             if hasattr(self.pet_widget, '_show_act'):
-                print(f"✅ 找到_show_act方法，开始调用")
-                
-                # 使用Qt的信号槽机制在主线程中安全调用
+                # 线程安全调用
                 try:
-                    from PySide6.QtCore import QMetaObject, Qt
+                    from PySide6.QtCore import QMetaObject, Qt, QThread, QTimer
                     
                     # 检查是否在主线程中
-                    from PySide6.QtCore import QThread
                     is_main_thread = QThread.currentThread() == self.app_instance.thread() if self.app_instance else True
-                    print(f"🔍 当前线程是主线程: {is_main_thread}")
                     
                     if is_main_thread:
                         # 在主线程中直接调用
+                        print(f"🎯 主线程直接调用: _show_act('{action_name}')")
                         self.pet_widget._show_act(action_name)
-                        print(f"🎯 主线程调用pet_widget._show_act('{action_name}')")
+                        print(f"✅ 主线程调用成功: {action_name}")
                     else:
-                        # 在非主线程中使用队列调用
-                        def safe_call():
-                            self.pet_widget._show_act(action_name)
-                            print(f"🎯 队列调用pet_widget._show_act('{action_name}')")
+                        # 在非主线程中使用QTimer单次调用来安全执行
+                        print(f"🔄 非主线程，使用QTimer调用: _show_act('{action_name}')")
                         
-                        QMetaObject.invokeMethod(
-                            self.pet_widget,
-                            safe_call,
-                            Qt.QueuedConnection
-                        )
-                        print(f"📞 已排队调用pet_widget._show_act('{action_name}')")
+                        def safe_call():
+                            try:
+                                self.pet_widget._show_act(action_name)
+                                print(f"✅ QTimer调用成功: {action_name}")
+                            except Exception as e:
+                                print(f"❌ QTimer调用失败: {e}")
+                        
+                        # 使用QTimer.singleShot在主线程中执行
+                        QTimer.singleShot(0, safe_call)
+                        print(f"📞 已排队QTimer调用: {action_name}")
                     
                 except Exception as call_error:
                     print(f"❌ 调用_show_act失败: {call_error}")
-                    import traceback
-                    print(f"📋 调用错误详情: {traceback.format_exc()}")
                     raise call_error
                 
                 # 更新状态
@@ -304,7 +293,6 @@ class DyberPetBridge:
                 return True
             else:
                 print("❌ PetWidget没有_show_act方法")
-                print(f"🔍 PetWidget可用方法: {[method for method in dir(self.pet_widget) if not method.startswith('_')][:10]}")
                 return False
                 
         except Exception as e:
