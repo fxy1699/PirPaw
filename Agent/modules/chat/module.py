@@ -387,7 +387,10 @@ class ChatModule(BaseModule):
     def handle_message(self, message, context=None):
         """处理对话消息 - 优先使用qwen-agent的Function Call"""
         if not self.enabled:
+            print(f"❌ ChatModule未启用，跳过消息: '{message}'")
             return None
+        
+        print(f"📝 ChatModule处理消息: '{message}'")
         
         # 更新交互统计
         self.last_interaction_time = datetime.now()
@@ -399,6 +402,8 @@ class ChatModule(BaseModule):
                              hasattr(self, '_function_calls_available') and
                              self._function_calls_available)
         
+        print(f"🔧 Function Call状态: agent={self.agent is not None}, local_mode={self.using_local_mode}, registry={self.module_registry is not None}, available={getattr(self, '_function_calls_available', False)}")
+        
         if has_function_calls:
             # 如果有Function Call功能，优先处理所有消息
             print(f"🤖 Function Call模式接管消息处理")
@@ -406,9 +411,11 @@ class ChatModule(BaseModule):
                 # 首先尝试Function Call处理
                 function_result = self._try_function_call(message)
                 if function_result:
+                    print(f"✅ Function Call处理成功")
                     return function_result
                 
                 # 如果没有匹配的Function Call，使用qwen-agent处理
+                print(f"🔄 Function Call无匹配，使用qwen-agent处理")
                 return self._handle_with_qwen_agent(message, context)
             except Exception as e:
                 print(f"❌ Function Call处理失败: {e}")
@@ -416,13 +423,19 @@ class ChatModule(BaseModule):
                 return None
         else:
             # 没有Function Call功能时，使用传统的过滤逻辑
-            if not self._should_handle_message(message):
+            should_handle = self._should_handle_message(message)
+            print(f"🎯 传统模式过滤结果: {should_handle}")
+            
+            if not should_handle:
+                print(f"❌ 消息被过滤，不处理: '{message}'")
                 return None
             
             try:
                 if self.agent:
+                    print(f"🤖 使用qwen-agent处理")
                     return self._handle_with_qwen_agent(message, context)
                 else:
+                    print(f"🏠 使用本地模式处理")
                     return self._handle_local_mode(message, context)
                     
             except Exception as e:
@@ -431,11 +444,15 @@ class ChatModule(BaseModule):
     
     def _should_handle_message(self, message):
         """判断是否应该处理此消息"""
-        # 基本对话关键词
+        # 基本对话关键词（扩展更全面的词汇）
         chat_keywords = [
             '聊天', '对话', '你好', 'hello', 'hi', '帮助', '问一下', 
             '小柏', '助手', '你能', '可以', '怎么', '什么', '为什么',
-            '?', '？', '吗', '呢', '呀', '吧'
+            '?', '？', '吗', '呢', '呀', '吧',
+            # 新增：身份询问相关
+            '你', '你是', '是谁', '介绍', '自己', '身份',
+            # 新增：常见对话词
+            '谢谢', '再见', '好的', '知道了', '明白', '不错'
         ]
         
         # 工具相关关键词 - 包含新集成的工具功能
@@ -469,12 +486,17 @@ class ChatModule(BaseModule):
             return True
         
         # 如果是问句（包含疑问词），但不包含专门模块关键词
-        question_words = ['何时', '何地', '何人', '如何', '是否', '能否', '会不会']
+        question_words = ['何时', '何地', '何人', '如何', '是否', '能否', '会不会', '谁', '哪里', '什么时候']
         if any(word in message for word in question_words) and not has_specialized:
             return True
         
         # 如果消息较短且可能是casual对话，但不包含专门模块关键词
         if len(message.strip()) <= 20 and not any(char.isdigit() for char in message) and not has_specialized:
+            return True
+        
+        # 最后的兜底策略：如果消息不为空且不包含专门模块关键词，就处理
+        if message.strip() and not has_specialized:
+            print(f"🔍 兜底处理消息: '{message}'")
             return True
         
         return False

@@ -1837,7 +1837,7 @@ class PetWidget(QWidget):
             w.exec()
     
     def _find_agent_module(self):
-        """查找Agent模块"""
+        """查找Agent核心系统"""
         try:
             # 从应用实例获取集成管理器
             app = QApplication.instance()
@@ -1845,16 +1845,16 @@ class PetWidget(QWidget):
                 from Agent.dyberpet_agent_integration import get_integration_manager
                 manager = get_integration_manager()
                 
-                if manager.pet_action_module:
-                    self.agent_module = manager.pet_action_module
-                    print("✅ 找到Agent宠物控制模块")
+                if manager.agent_core:
+                    self.agent_module = manager.agent_core  # ← 修改为使用AgentCore
+                    print("✅ 找到Agent核心系统，支持完整对话功能")
                 else:
-                    print("⚠️ Agent集成管理器中没有宠物控制模块")
+                    print("⚠️ Agent集成管理器中没有AgentCore")
             else:
                 print("⚠️ Agent系统未正确集成")
                 
         except Exception as e:
-            print(f"❌ 查找Agent模块失败: {e}")
+            print(f"❌ 查找Agent核心系统失败: {e}")
     
     def _reset_chat_window_state(self):
         """重置聊天窗口状态"""

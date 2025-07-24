@@ -8,7 +8,7 @@
   },
   "module_configs": {
     "chat": {
-      "qwen_api_key": "",
+      "qwen_api_key": "sk-2677250bb83f44d781f22ac0805eb0a6",
       "model": "qwen-plus",
       "enable_thinking": true,
       "max_tokens": 2000,

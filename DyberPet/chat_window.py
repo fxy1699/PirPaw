@@ -177,13 +177,16 @@ class ChatWindow(QWidget):
             self.status_label.setText("🤖 处理中...")
             QApplication.processEvents()  # 更新UI
             
-            # 调用Agent处理
-            print(f"📞 调用agent_executor.handle_message('{message}')")
-            result = self.agent_executor.handle_message(message)
-            print(f"📋 Agent返回结果: {result}")
+            # 调用Agent核心处理（分发给所有模块）
+            print(f"📞 调用agent_executor.process_message('{message}')")
+            results = self.agent_executor.process_message(message)
+            print(f"📋 Agent返回结果: {results}")
             
-            if result:
-                self.add_bot_message(result)
+            if results and len(results) > 0:
+                # 显示所有模块的响应
+                for result in results:
+                    if result and result.strip():
+                        self.add_bot_message(result)
             else:
                 self.add_bot_message("🤔 抱歉，我没能理解这个指令。请尝试其他表达方式。")
                 

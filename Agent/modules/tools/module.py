@@ -211,4 +211,101 @@ class ToolsModule(BaseModule):
     def cleanup(self):
         """清理资源"""
         self.enabled_tools.clear()
-        super().cleanup() 
+        super().cleanup()
+
+    # ============ Function Call 接口 ============
+    
+    def get_function_definitions(self) -> list:
+        """获取Tools模块的Function Call工具定义"""
+        return [
+            {
+                "name": "get_current_time",
+                "description": "获取当前时间、日期和星期信息，包含时间问候",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_system_info",
+                "description": "获取系统信息，包括CPU使用率、内存使用率、磁盘空间等",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "info_type": {
+                            "type": "string",
+                            "enum": ["overview", "cpu", "memory", "disk", "system"],
+                            "description": "信息类型：overview概览，cpu处理器，memory内存，disk磁盘，system系统"
+                        }
+                    },
+                    "required": []
+                }
+            },
+            {
+                "name": "get_file_info",
+                "description": "获取文件系统信息和常用文件夹状态",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "operation": {
+                            "type": "string",
+                            "enum": ["info", "search", "open"],
+                            "description": "操作类型：info获取信息，search搜索文件，open打开文件"
+                        }
+                    },
+                    "required": []
+                }
+            }
+        ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用Tools模块的具体功能"""
+        if not self.enabled:
+            raise RuntimeError(f"模块 {self.name} 已禁用")
+        
+        if function_name == "get_current_time":
+            return self._function_get_current_time(arguments)
+        elif function_name == "get_system_info":
+            return self._function_get_system_info(arguments)
+        elif function_name == "get_file_info":
+            return self._function_get_file_info(arguments)
+        else:
+            raise ValueError(f"未知功能: {function_name}")
+    
+    def _function_get_current_time(self, arguments: dict):
+        """Function Call: 获取当前时间"""
+        return self.get_current_time()
+    
+    def _function_get_system_info(self, arguments: dict):
+        """Function Call: 获取系统信息"""
+        info_type = arguments.get("info_type", "overview")
+        
+        if info_type == "overview":
+            # 获取系统概览
+            message = "系统概览"
+        elif info_type == "cpu":
+            message = "CPU处理器"
+        elif info_type == "memory":
+            message = "内存"
+        elif info_type == "disk":
+            message = "磁盘"
+        elif info_type == "system":
+            message = "系统"
+        else:
+            message = "系统概览"
+        
+        return self.get_system_info(message)
+    
+    def _function_get_file_info(self, arguments: dict):
+        """Function Call: 获取文件信息"""
+        operation = arguments.get("operation", "info")
+        
+        if operation == "info":
+            return self.get_file_info()
+        elif operation == "search":
+            return self.search_files("搜索文件")
+        elif operation == "open":
+            return self.open_file_dialog("打开文件")
+        else:
+            return self.get_file_info() 
