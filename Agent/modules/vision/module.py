@@ -15,6 +15,7 @@ class VisionModule(BaseModule):
         super().__init__()
         self.last_screenshot = None
         self.ocr_engine = None
+        self._hotkey_listener = None  # 新增：快捷键监听句柄
         
     def setup(self, config=None):
         """初始化视觉功能"""
@@ -28,6 +29,28 @@ class VisionModule(BaseModule):
             # 可选：初始化OCR引擎
             if self.config.get('ocr_enabled', True):
                 self._init_ocr()
+
+            # 注册全局快捷键（Ctrl+Alt+S）- 使用 pynput 替代 keyboard
+            try:
+                import threading
+                from pynput import keyboard as pynput_keyboard  # pip install pynput
+                def on_activate():
+                    screenshot = self.capture_screen()
+                    if screenshot:
+                        print("📸 快捷键截图已保存！")
+                    else:
+                        print("❌ 快捷键截图失败！")
+                def start_hotkey():
+                    # 监听 F1
+                    with pynput_keyboard.GlobalHotKeys({
+                        '<f1>': on_activate
+                    }) as h:
+                        h.join()
+                self._hotkey_listener = threading.Thread(target=start_hotkey, daemon=True)
+                self._hotkey_listener.start()
+                print("💡 已注册截图快捷键 F1 (pynput)")
+            except Exception as e:
+                print(f"⚠️ 快捷键注册失败: {e}")
                 
         except ImportError:
             print("❌ 未安装pyautogui，请运行: pip install pyautogui")
@@ -40,11 +63,11 @@ class VisionModule(BaseModule):
         """初始化OCR引擎"""
         try:
             # 可以使用PaddleOCR或其他OCR库
-            # import paddleocr
-            # self.ocr_engine = paddleocr.PaddleOCR(use_angle_cls=True, lang='ch')
+            import paddleocr
+            self.ocr_engine = paddleocr.PaddleOCR(use_angle_cls=True, lang='ch')
             print("💡 OCR功能需要额外配置")
-        except:
-            print("⚠️ OCR引擎初始化失败")
+        except Exception as e:
+            print(f"⚠️ OCR引擎初始化失败: {e}")
     
     def handle_message(self, message, context=None):
         """处理视觉相关请求"""
@@ -70,10 +93,12 @@ class VisionModule(BaseModule):
             return f"👁️ 屏幕分析遇到问题: {str(e)}"
     
     def capture_screen(self, region=None):
-        """截取屏幕"""
+        """截取屏幕并保存到screenshots文件夹"""
         try:
             import pyautogui
-            
+            import os
+            from datetime import datetime
+
             # 设置截图区域
             if region:
                 screenshot = pyautogui.screenshot(region=region)
@@ -81,22 +106,53 @@ class VisionModule(BaseModule):
                 # 限制截图大小以节省资源
                 max_size = self.config.get('max_image_size', [1920, 1080])
                 screenshot = pyautogui.screenshot()
-                
                 # 如果图像太大，缩放它
                 if screenshot.size[0] > max_size[0] or screenshot.size[1] > max_size[1]:
                     try:
                         from PIL import Image
                         screenshot.thumbnail(max_size, Image.LANCZOS)
                     except ImportError:
-                        # 如果没有PIL，就不缩放
                         pass
-            
+
             self.last_screenshot = screenshot
-            return screenshot
-            
+
+            # 保存到screenshots文件夹（按天分文件夹）
+            save_dir = os.path.join(os.getcwd(), 'screenshots')
+            day_folder = datetime.now().strftime('%Y%m%d')
+            save_dir = os.path.join(save_dir, day_folder)
+            os.makedirs(save_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            save_path = os.path.join(save_dir, f'screenshot_{timestamp}.png')
+            screenshot.save(save_path)
+
+            # 新增：自动复制到剪切板
+            self._copy_image_to_clipboard(screenshot)
+
+            return screenshot  # 如需返回路径可 return screenshot, save_path
         except Exception as e:
             print(f"❌ 截图失败: {e}")
             return None
+
+    def _copy_image_to_clipboard(self, pil_image):
+        """将PIL图片复制到macOS剪切板"""
+        try:
+            from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+            from Foundation import NSData
+            import io
+
+            output = io.BytesIO()
+            pil_image.save(output, format='PNG')
+            data = output.getvalue()
+            output.close()
+
+            nsdata = NSData.dataWithBytes_length_(data, len(data))
+            image = NSImage.alloc().initWithData_(nsdata)
+            pb = NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.writeObjects_([image])
+            print("✅ 截图已复制到剪切板！")
+        except Exception as e:
+            print(f"⚠️ 复制图片到剪切板失败: {e}")
     
     def analyze_screenshot(self, screenshot, user_message):
         """分析截图内容"""
@@ -124,8 +180,8 @@ class VisionModule(BaseModule):
         
         try:
             # 这里应该调用实际的OCR引擎
-            # result = self.ocr_engine.ocr(image_array)
-            # return self.process_ocr_result(result)
+            result = self.ocr_engine.ocr(image)
+            return self.process_ocr_result(result)
             return "需要配置OCR引擎才能识别文字"
         except Exception as e:
             return f"文字识别失败: {e}"
@@ -162,6 +218,8 @@ class VisionModule(BaseModule):
     def cleanup(self):
         """清理资源"""
         self.last_screenshot = None
+        # 移除快捷键监听（pynput 无需手动 unhook，但可尝试安全退出）
+        # 若有更复杂的监听管理，可在此处补充
         super().cleanup()
 
     # ============ Function Call 接口 ============

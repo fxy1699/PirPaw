@@ -47,8 +47,8 @@ class CameraModule(BaseModule):
         """初始化姿态检测"""
         try:
             # 可以使用MediaPipe进行姿态检测
-            # import mediapipe as mp
-            # self.pose_detector = mp.solutions.pose.Pose()
+            import mediapipe as mp
+            self.pose_detector = mp.solutions.pose.Pose()
             print("💡 姿态检测功能需要额外配置MediaPipe")
         except Exception as e:
             print(f"⚠️ 姿态检测初始化失败: {e}")
