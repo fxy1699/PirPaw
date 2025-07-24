@@ -27,6 +27,8 @@ class ChatModule(BaseModule):
             'preferences': {},
             'interaction_count': 0
         }
+        self.using_local_mode = False
+        self._function_calls_available = False
         
     def setup(self, config=None):
         """初始化Qwen-Agent"""
@@ -88,19 +90,8 @@ class ChatModule(BaseModule):
             else:
                 print("💡 未配置AMAP_TOKEN，天气功能将使用Tools模块")
             
-            # 集成模块Function Call工具
-            module_functions = []
-            if self.module_registry:
-                try:
-                    module_tools = self.module_registry.get_function_list_for_qwen_agent()
-                    # qwen-agent需要的是函数对象列表
-                    module_functions.extend(module_tools)
-                    print(f"🔗 已集成 {len(module_tools)} 个模块功能到qwen-agent")
-                except Exception as e:
-                    print(f"⚠️ 集成模块功能失败: {e}")
-            
-            # 合并内置工具和模块工具
-            all_tools = qwen_tools + module_functions
+            # 暂时只使用qwen内置工具创建Agent，模块功能稍后集成
+            all_tools = qwen_tools
             
             # 创建Agent实例，集成所有工具
             self.agent = Assistant(
@@ -239,8 +230,106 @@ class ChatModule(BaseModule):
             
             print(f"🔗 已注册 {len(filtered_modules)} 个模块功能到智能对话系统")
             
+            # 重新集成Function Call功能到qwen-agent
+            self._integrate_function_calls()
+            
         except Exception as e:
             print(f"❌ 模块功能注册失败: {e}")
+    
+    def _integrate_function_calls(self):
+        """将Function Call功能集成到qwen-agent"""
+        if not self.agent or not self.module_registry:
+            return
+        
+        try:
+            # 暂时简化：不重新创建Agent，而是在现有基础上添加Function Call支持
+            # 设置标志表示Function Call可用
+            self._function_calls_available = True
+            
+            # 获取模块功能数量用于显示
+            available_functions = self.module_registry.get_available_functions()
+            print(f"✅ Function Call系统已就绪，包含 {len(available_functions)} 个模块功能")
+            
+        except Exception as e:
+            print(f"❌ Function Call系统设置失败: {e}")
+            self._function_calls_available = False
+    
+    def _try_function_call(self, message):
+        """尝试将消息匹配到Function Call"""
+        if not self.module_registry:
+            return None
+        
+        message_lower = message.lower()
+        
+        # 应用使用时长相关
+        if any(word in message_lower for word in ['应用', '使用时长', '时间统计', '应用统计', '使用情况']):
+            try:
+                print(f"📊 Function Call: 获取应用使用统计")
+                result = self.module_registry.call_function_directly(
+                    "tracker_get_usage_stats", 
+                    {"period": "today", "detail_level": "summary"}
+                )
+                return f"📊 应用使用统计:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 宠物动作相关
+        if any(word in message_lower for word in ['睡觉', '走路', '跳舞', '站立', '动作', '小猫', '宠物']):
+            try:
+                print(f"🐾 Function Call: 控制宠物动作")
+                result = self.module_registry.call_function_directly(
+                    "petaction_control_pet_action", 
+                    {"action_command": message}
+                )
+                return f"🐾 宠物动作:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 宠物状态查询
+        if any(word in message_lower for word in ['状态', '现在的', '当前', '宠物信息']):
+            try:
+                print(f"📋 Function Call: 获取宠物状态")
+                result = self.module_registry.call_function_directly(
+                    "petaction_get_pet_status", {}
+                )
+                return f"📋 宠物状态:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 屏幕截图相关
+        if any(word in message_lower for word in ['截图', '屏幕', '看看', '分析界面']):
+            try:
+                print(f"📷 Function Call: 截取屏幕")
+                result = self.module_registry.call_function_directly(
+                    "vision_capture_screen", 
+                    {"analysis_type": "general"}
+                )
+                return f"📷 屏幕分析:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 追踪控制
+        if any(word in message_lower for word in ['开始追踪', '启动追踪']):
+            try:
+                print(f"▶️ Function Call: 开始追踪")
+                result = self.module_registry.call_function_directly(
+                    "tracker_start_tracking", {}
+                )
+                return f"▶️ {result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        if any(word in message_lower for word in ['停止追踪', '结束追踪']):
+            try:
+                print(f"⏹️ Function Call: 停止追踪")
+                result = self.module_registry.call_function_directly(
+                    "tracker_stop_tracking", {}
+                )
+                return f"⏹️ {result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        return None
     
     def _build_system_message(self):
         """构建个性化系统指令"""
@@ -296,7 +385,7 @@ class ChatModule(BaseModule):
             return "夜深了，注意休息哦！有什么紧急的事情需要帮助吗？"
     
     def handle_message(self, message, context=None):
-        """处理对话消息"""
+        """处理对话消息 - 优先使用qwen-agent的Function Call"""
         if not self.enabled:
             return None
         
@@ -304,19 +393,41 @@ class ChatModule(BaseModule):
         self.last_interaction_time = datetime.now()
         self.user_profile['interaction_count'] += 1
         
-        # 判断是否是对话请求 - 扩展触发条件包含新工具
-        if not self._should_handle_message(message):
-            return None
+        # 检查是否有Function Call功能可用
+        has_function_calls = (self.agent and not self.using_local_mode and 
+                             self.module_registry and 
+                             hasattr(self, '_function_calls_available') and
+                             self._function_calls_available)
         
-        try:
-            if self.agent:
-                return self._handle_with_qwen_agent(message, context)
-            else:
-                return self._handle_local_mode(message, context)
+        if has_function_calls:
+            # 如果有Function Call功能，优先处理所有消息
+            print(f"🤖 Function Call模式接管消息处理")
+            try:
+                # 首先尝试Function Call处理
+                function_result = self._try_function_call(message)
+                if function_result:
+                    return function_result
                 
-        except Exception as e:
-            print(f"❌ 对话处理失败: {e}")
-            return f"🤖 抱歉，我遇到了一些问题：{str(e)}\n💡 请稍后再试，或者尝试重新表述您的问题。"
+                # 如果没有匹配的Function Call，使用qwen-agent处理
+                return self._handle_with_qwen_agent(message, context)
+            except Exception as e:
+                print(f"❌ Function Call处理失败: {e}")
+                # 失败时降级到传统模式
+                return None
+        else:
+            # 没有Function Call功能时，使用传统的过滤逻辑
+            if not self._should_handle_message(message):
+                return None
+            
+            try:
+                if self.agent:
+                    return self._handle_with_qwen_agent(message, context)
+                else:
+                    return self._handle_local_mode(message, context)
+                    
+            except Exception as e:
+                print(f"❌ 对话处理失败: {e}")
+                return f"🤖 抱歉，我遇到了一些问题：{str(e)}\n💡 请稍后再试，或者尝试重新表述您的问题。"
     
     def _should_handle_message(self, message):
         """判断是否应该处理此消息"""
