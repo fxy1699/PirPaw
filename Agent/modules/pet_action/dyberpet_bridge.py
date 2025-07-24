@@ -222,6 +222,164 @@ class DyberPetBridge:
         
         return connected
     
+    def _map_to_valid_action(self, action_name: str) -> str:
+        """将动作名称映射到有效的DyberPet动作"""
+        if not self.pet_widget:
+            return None
+            
+        try:
+            # 导入设置模块
+            import sys
+            import os
+            dyberpet_path = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            if dyberpet_path not in sys.path:
+                sys.path.insert(0, dyberpet_path)
+            
+            from DyberPet import settings
+            
+            # 获取当前宠物的可用动作
+            if hasattr(settings, 'act_data') and hasattr(settings.act_data, 'allAct_params'):
+                petname = getattr(settings, 'petname', 'Kitty')
+                available_actions = settings.act_data.allAct_params.get(petname, {})
+                
+                print(f"🔍 检查动作映射: {action_name}")
+                print(f"🔍 当前宠物: {petname}")
+                print(f"🔍 可用动作: {list(available_actions.keys())}")
+                
+                # 动作名称映射表
+                action_mapping = {
+                    'up': '站立',
+                    'down': '站立', 
+                    'left': '左右行走',
+                    'right': '左右行走',
+                    'stand': '站立',
+                    'walk': '左右行走',
+                    'sleep': '睡觉',
+                    'angry': '生气',
+                    'leftwalk': '左右行走',
+                    'rightwalk': '左右行走',
+                    'left_walk': '左右行走',
+                    'right_walk': '左右行走'
+                }
+                
+                # 首先检查直接匹配
+                if action_name in available_actions:
+                    return action_name
+                
+                # 然后检查映射表
+                mapped_name = action_mapping.get(action_name.lower())
+                if mapped_name and mapped_name in available_actions:
+                    print(f"🔄 动作映射: {action_name} -> {mapped_name}")
+                    return mapped_name
+                
+                # 如果还是找不到，返回第一个可用动作
+                if available_actions:
+                    first_action = list(available_actions.keys())[0]
+                    print(f"🔄 使用第一个可用动作: {first_action}")
+                    return first_action
+                    
+            return None
+            
+        except Exception as e:
+            print(f"❌ 动作映射失败: {e}")
+            return None
+    
+    def _is_action_available(self, action_name: str) -> bool:
+        """检查动作是否可用"""
+        if not self.pet_widget:
+            return False
+            
+        try:
+            from DyberPet import settings
+            if hasattr(settings, 'act_data') and hasattr(settings.act_data, 'allAct_params'):
+                petname = getattr(settings, 'petname', 'Kitty')
+                available_actions = settings.act_data.allAct_params.get(petname, {})
+                return action_name in available_actions
+        except:
+            return False
+    
+    def _debug_action_execution(self, action_name: str):
+        """调试动作执行状态"""
+        try:
+            from DyberPet import settings
+            
+            print(f"🔍 === 动作执行调试信息 ===")
+            print(f"🎭 动作名称: {action_name}")
+            
+            # 检查宠物状态
+            if hasattr(self.pet_widget, 'workers'):
+                print(f"🔧 Animation Worker: {self.pet_widget.workers.get('Animation')}")
+                print(f"🔧 Interaction Worker: {self.pet_widget.workers.get('Interaction')}")
+                
+                # 检查Animation worker状态
+                anim_worker = self.pet_widget.workers.get('Animation')
+                if anim_worker:
+                    print(f"🔍 Animation Worker状态: {getattr(anim_worker, 'is_paused', 'unknown')}")
+                
+                # 检查Interaction worker状态
+                inter_worker = self.pet_widget.workers.get('Interaction')
+                if inter_worker:
+                    print(f"🔍 Interaction Worker状态:")
+                    print(f"   - interact: {getattr(inter_worker, 'interact', 'None')}")
+                    print(f"   - is_killed: {getattr(inter_worker, 'is_killed', 'unknown')}")
+                    print(f"   - is_paused: {getattr(inter_worker, 'is_paused', 'unknown')}")
+            
+            # 检查动作配置
+            if hasattr(settings, 'act_data') and hasattr(settings.act_data, 'allAct_params'):
+                petname = getattr(settings, 'petname', 'Kitty')
+                available_actions = settings.act_data.allAct_params.get(petname, {})
+                
+                if action_name in available_actions:
+                    action_config = available_actions[action_name]
+                    print(f"🔍 动作配置: {action_config}")
+                    print(f"   - act_type: {action_config.get('act_type')}")
+                    print(f"   - unlocked: {action_config.get('unlocked')}")
+                    print(f"   - in_playlist: {action_config.get('in_playlist')}")
+                else:
+                    print(f"❌ 动作 {action_name} 不在配置中")
+            
+            # 检查线程状态
+            if hasattr(self.pet_widget, 'threads'):
+                animation_thread = self.pet_widget.threads.get('Animation')
+                interaction_thread = self.pet_widget.threads.get('Interaction')
+                
+                if animation_thread:
+                    print(f"🧵 Animation线程运行: {animation_thread.isRunning()}")
+                if interaction_thread:
+                    print(f"🧵 Interaction线程运行: {interaction_thread.isRunning()}")
+            
+            print(f"🔍 === 调试信息结束 ===")
+            
+        except Exception as e:
+            print(f"❌ 调试信息获取失败: {e}")
+    
+    def _hook_interaction_worker(self):
+        """Hook Interaction Worker来监控动作处理"""
+        try:
+            if hasattr(self.pet_widget, 'workers'):
+                inter_worker = self.pet_widget.workers.get('Interaction')
+                if inter_worker and hasattr(inter_worker, 'start_interact'):
+                    original_start_interact = inter_worker.start_interact
+                    
+                    def monitored_start_interact(interact, act_name=None):
+                        print(f"🎪 Interaction.start_interact被调用: interact={interact}, act_name={act_name}")
+                        try:
+                            result = original_start_interact(interact, act_name)
+                            print(f"🎪 Interaction.start_interact执行完成: interact={interact}, act_name={act_name}")
+                            return result
+                        except Exception as e:
+                            print(f"🎪 Interaction.start_interact执行异常: {e}")
+                            raise
+                    
+                    # 临时替换方法
+                    inter_worker.start_interact = monitored_start_interact
+                    print("🔧 已Hook Interaction Worker的start_interact方法")
+                    
+                    return original_start_interact
+        except Exception as e:
+            print(f"❌ Hook Interaction Worker失败: {e}")
+        return None
+    
     def get_connection_status(self) -> ConnectionStatus:
         """获取连接状态"""
         return self.status
@@ -251,6 +409,22 @@ class DyberPetBridge:
             
             # 调用DyberPet的动作执行方法
             if hasattr(self.pet_widget, '_show_act'):
+                # 检查动作是否在配置中存在
+                mapped_action = self._map_to_valid_action(action_name)
+                if not mapped_action:
+                    print(f"❌ 动作 {action_name} 不在宠物动作列表中，使用替代动作")
+                    # 尝试使用一些通用替代动作
+                    fallback_actions = ['站立', '左右行走', '睡觉']
+                    for fallback in fallback_actions:
+                        if self._is_action_available(fallback):
+                            mapped_action = fallback
+                            print(f"🔄 使用替代动作: {mapped_action}")
+                            break
+                    
+                    if not mapped_action:
+                        print(f"❌ 找不到任何可用的替代动作")
+                        return False
+                
                 # 线程安全调用
                 try:
                     from PySide6.QtCore import QMetaObject, Qt, QThread, QTimer
@@ -260,23 +434,123 @@ class DyberPetBridge:
                     
                     if is_main_thread:
                         # 在主线程中直接调用
-                        print(f"🎯 主线程直接调用: _show_act('{action_name}')")
-                        self.pet_widget._show_act(action_name)
-                        print(f"✅ 主线程调用成功: {action_name}")
-                    else:
-                        # 在非主线程中使用QTimer单次调用来安全执行
-                        print(f"🔄 非主线程，使用QTimer调用: _show_act('{action_name}')")
+                        print(f"🎯 主线程直接调用: _show_act('{mapped_action}')")
+                        self._debug_action_execution(mapped_action)
                         
-                        def safe_call():
+                        # Hook Interaction Worker
+                        original_start_interact = self._hook_interaction_worker()
+                        
+                        # Hook原始_show_act方法来监控调用
+                        original_show_act = self.pet_widget._show_act
+                        def monitored_show_act(act_name):
+                            print(f"🎬 _show_act被调用: {act_name}")
                             try:
-                                self.pet_widget._show_act(action_name)
-                                print(f"✅ QTimer调用成功: {action_name}")
+                                result = original_show_act(act_name)
+                                print(f"🎬 _show_act执行完成: {act_name}")
+                                return result
                             except Exception as e:
-                                print(f"❌ QTimer调用失败: {e}")
+                                print(f"🎬 _show_act执行异常: {e}")
+                                raise
                         
-                        # 使用QTimer.singleShot在主线程中执行
-                        QTimer.singleShot(0, safe_call)
-                        print(f"📞 已排队QTimer调用: {action_name}")
+                        # 临时替换方法
+                        self.pet_widget._show_act = monitored_show_act
+                        
+                        # 执行动作
+                        self.pet_widget._show_act(mapped_action)
+                        
+                        # 恢复原始方法
+                        self.pet_widget._show_act = original_show_act
+                        
+                        # 恢复Interaction Worker
+                        if original_start_interact and hasattr(self.pet_widget, 'workers'):
+                            inter_worker = self.pet_widget.workers.get('Interaction')
+                            if inter_worker:
+                                inter_worker.start_interact = original_start_interact
+                        
+                        print(f"✅ 主线程调用成功: {mapped_action}")
+                    else:
+                        # 在非主线程中直接尝试调用，忽略线程限制
+                        print(f"🔄 非主线程，直接尝试调用: _show_act('{mapped_action}')")
+                        
+                        try:
+                            print(f"🎯 直接调用: _show_act('{mapped_action}')")
+                            self._debug_action_execution(mapped_action)
+                            
+                            # Hook Interaction Worker
+                            original_start_interact = self._hook_interaction_worker()
+                            
+                            # Hook原始_show_act方法来监控调用
+                            original_show_act = self.pet_widget._show_act
+                            def monitored_show_act(act_name):
+                                print(f"🎬 _show_act被调用: {act_name}")
+                                try:
+                                    result = original_show_act(act_name)
+                                    print(f"🎬 _show_act执行完成: {act_name}")
+                                    return result
+                                except Exception as e:
+                                    print(f"🎬 _show_act执行异常: {e}")
+                                    raise
+                            
+                            # 临时替换方法
+                            self.pet_widget._show_act = monitored_show_act
+                            
+                            # 直接执行动作
+                            self.pet_widget._show_act(mapped_action)
+                            
+                            # 恢复原始方法
+                            self.pet_widget._show_act = original_show_act
+                            
+                            # 恢复Interaction Worker
+                            if original_start_interact and hasattr(self.pet_widget, 'workers'):
+                                inter_worker = self.pet_widget.workers.get('Interaction')
+                                if inter_worker:
+                                    inter_worker.start_interact = original_start_interact
+                            
+                            print(f"✅ 直接调用成功: {mapped_action}")
+                            
+                        except Exception as e:
+                            print(f"❌ 直接调用失败: {e}")
+                            import traceback
+                            print(f"📋 错误详情: {traceback.format_exc()}")
+                            
+                            # 如果直接调用失败，尝试使用信号机制
+                            print(f"🔄 尝试使用信号机制调用...")
+                            try:
+                                # 使用QApplication.postEvent发送自定义事件
+                                from PySide6.QtCore import QEvent
+                                from PySide6.QtWidgets import QApplication
+                                
+                                class ActionEvent(QEvent):
+                                    def __init__(self, action_name):
+                                        super().__init__(QEvent.User)
+                                        self.action_name = action_name
+                                
+                                # 创建事件处理器
+                                def eventFilter(obj, event):
+                                    if isinstance(event, ActionEvent):
+                                        try:
+                                            print(f"🎯 事件驱动调用: _show_act('{event.action_name}')")
+                                            obj._show_act(event.action_name)
+                                            print(f"✅ 事件驱动调用成功: {event.action_name}")
+                                        except Exception as e:
+                                            print(f"❌ 事件驱动调用失败: {e}")
+                                        return True
+                                    return False
+                                
+                                # 安装事件过滤器
+                                original_filter = getattr(self.pet_widget, 'eventFilter', None)
+                                self.pet_widget.eventFilter = eventFilter
+                                
+                                # 发送事件
+                                event = ActionEvent(mapped_action)
+                                QApplication.postEvent(self.pet_widget, event)
+                                
+                                print(f"📨 已发送动作事件: {mapped_action}")
+                                
+                            except Exception as event_error:
+                                print(f"❌ 信号机制也失败: {event_error}")
+                        
+                        print(f"📞 已尝试调用: {mapped_action}")
                     
                 except Exception as call_error:
                     print(f"❌ 调用_show_act失败: {call_error}")
