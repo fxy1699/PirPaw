@@ -1726,12 +1726,32 @@ class PetWidget(QWidget):
             else:
                 print("🔄 使用现有聊天窗口")
             
-            # 检查聊天窗口是否已经可见
-            if self.chat_window.isVisible():
-                print("👁️ 聊天窗口已经可见，激活窗口")
-                self.chat_window.raise_()
-                self.chat_window.activateWindow()
-                return
+            # 使用更精确的窗口状态检查
+            if hasattr(self.chat_window, 'check_window_status'):
+                is_truly_visible = self.chat_window.check_window_status()
+            else:
+                is_truly_visible = (self.chat_window.isVisible() and 
+                                   not self.chat_window.isMinimized() and
+                                   not self.chat_window.isHidden())
+            
+            if is_truly_visible:
+                # 检查窗口是否在屏幕范围内
+                window_rect = self.chat_window.geometry()
+                screen = QApplication.primaryScreen()
+                screen_rect = screen.availableGeometry()
+                
+                # 如果窗口完全在屏幕外，重新定位
+                if (window_rect.right() < screen_rect.left() or 
+                    window_rect.left() > screen_rect.right() or
+                    window_rect.bottom() < screen_rect.top() or
+                    window_rect.top() > screen_rect.bottom()):
+                    print("🔄 聊天窗口在屏幕外，重新定位")
+                else:
+                    print("👁️ 聊天窗口已经可见，激活窗口")
+                    self.chat_window.raise_()
+                    self.chat_window.activateWindow()
+                    self.chat_window.setFocus()
+                    return
             
             # 计算聊天窗口位置（在小猫右侧）
             pet_pos = self.pos()
@@ -1771,22 +1791,37 @@ class PetWidget(QWidget):
             QApplication.processEvents()  # 处理待处理的事件
             time.sleep(0.1)  # 短暂等待
             
-            if self.chat_window.isVisible():
+            # 更严格的可见性检查
+            is_really_visible = (self.chat_window.isVisible() and 
+                               not self.chat_window.isMinimized() and
+                               not self.chat_window.isHidden())
+            
+            if is_really_visible:
                 print(f"✅ 聊天窗口已成功显示在位置: ({chat_x},{chat_y})")
                 print(f"🔍 窗口大小: {self.chat_window.size().width()}x{self.chat_window.size().height()}")
-                print(f"🔍 窗口状态: visible={self.chat_window.isVisible()}, active={self.chat_window.isActiveWindow()}")
+                print(f"🔍 窗口状态: visible={self.chat_window.isVisible()}, active={self.chat_window.isActiveWindow()}, minimized={self.chat_window.isMinimized()}")
             else:
                 print("❌ 聊天窗口显示失败！尝试强制显示...")
-                # 尝试强制显示
-                self.chat_window.force_show()
-                self.chat_window.move(chat_x, chat_y)  # 重新设置位置
+                # 尝试重置窗口状态
+                self._reset_chat_window_state()
+                
+                # 重新设置位置和显示
+                self.chat_window.move(chat_x, chat_y)
+                self.chat_window.showNormal()  # 确保不是最小化状态
+                self.chat_window.raise_()
+                self.chat_window.activateWindow()
+                self.chat_window.setFocus()
                 
                 # 再次检查
                 QApplication.processEvents()
-                if self.chat_window.isVisible():
+                time.sleep(0.1)
+                
+                if self.chat_window.isVisible() and not self.chat_window.isMinimized():
                     print("✅ 强制显示成功！")
                 else:
-                    print("❌ 强制显示也失败了！")
+                    print("❌ 强制显示也失败了！尝试重新创建窗口...")
+                    # 最后手段：重新创建窗口
+                    self._recreate_chat_window()
                 
             print(f"🎯 聊天窗口位置: 小猫({pet_pos.x()},{pet_pos.y()}) -> 聊天框({chat_x},{chat_y})")
             
@@ -1820,6 +1855,81 @@ class PetWidget(QWidget):
                 
         except Exception as e:
             print(f"❌ 查找Agent模块失败: {e}")
+    
+    def _reset_chat_window_state(self):
+        """重置聊天窗口状态"""
+        try:
+            if self.chat_window:
+                print("🔄 重置聊天窗口状态...")
+                # 确保窗口不是隐藏状态
+                self.chat_window.setHidden(False)
+                # 确保窗口不是最小化状态
+                if self.chat_window.isMinimized():
+                    self.chat_window.showNormal()
+                # 重置窗口标志
+                self.chat_window.setWindowFlags(Qt.Window | Qt.WindowStaysOnTopHint)
+                # 显示窗口
+                self.chat_window.show()
+                print("✅ 聊天窗口状态已重置")
+        except Exception as e:
+            print(f"❌ 重置聊天窗口状态失败: {e}")
+    
+    def _recreate_chat_window(self):
+        """重新创建聊天窗口"""
+        try:
+            print("🔄 重新创建聊天窗口...")
+            
+            # 关闭并删除旧窗口
+            if self.chat_window:
+                try:
+                    self.chat_window.close()
+                    self.chat_window.deleteLater()
+                except:
+                    pass
+                self.chat_window = None
+            
+            # 创建新窗口
+            from .chat_window import ChatWindow
+            self.chat_window = ChatWindow(self)
+            
+            # 重新连接Agent
+            if self.agent_module is None:
+                self._find_agent_module()
+            
+            if self.agent_module:
+                self.chat_window.set_agent_executor(self.agent_module)
+                print("✅ Agent模块已重新连接到新聊天窗口")
+            
+            # 计算位置并显示
+            pet_pos = self.pos()
+            pet_size = self.size()
+            chat_x = pet_pos.x() + pet_size.width() + 20
+            chat_y = pet_pos.y()
+            
+            # 确保在屏幕范围内
+            screen = QApplication.primaryScreen()
+            screen_geometry = screen.availableGeometry()
+            
+            if chat_x + 400 > screen_geometry.right():
+                chat_x = pet_pos.x() - 400 - 20
+            if chat_y + 500 > screen_geometry.bottom():
+                chat_y = screen_geometry.bottom() - 500
+            if chat_y < screen_geometry.top():
+                chat_y = screen_geometry.top()
+            
+            # 显示新窗口
+            self.chat_window.move(chat_x, chat_y)
+            self.chat_window.show()
+            self.chat_window.raise_()
+            self.chat_window.activateWindow()
+            self.chat_window.setFocus()
+            
+            print(f"✅ 聊天窗口已重新创建在位置: ({chat_x},{chat_y})")
+            
+        except Exception as e:
+            print(f"❌ 重新创建聊天窗口失败: {e}")
+            import traceback
+            print(f"📋 错误详情: {traceback.format_exc()}")
 
     '''
     def show_compday(self):

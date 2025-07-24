@@ -241,17 +241,6 @@ class ChatWindow(QWidget):
         scrollbar = self.chat_display.verticalScrollBar()
         scrollbar.setValue(scrollbar.maximum())
         
-    def showEvent(self, event):
-        """显示事件"""
-        print("📺 showEvent 被调用")
-        super().showEvent(event)
-        # 确保输入框获得焦点
-        self.input_field.setFocus()
-        print("🔍 聊天窗口已显示，输入框已获得焦点")
-        print(f"🔍 窗口几何信息: pos=({self.x()},{self.y()}), size=({self.width()}x{self.height()})")
-        print(f"🔍 窗口标志: {self.windowFlags()}")
-        print(f"🔍 父窗口: {self.parent()}")
-        
     def force_show(self):
         """强制显示聊天窗口"""
         print("🚀 force_show 被调用")
@@ -273,5 +262,34 @@ class ChatWindow(QWidget):
         
     def closeEvent(self, event):
         """关闭事件"""
+        print("🔄 聊天窗口关闭事件被触发，隐藏窗口")
         self.hide()  # 隐藏而不是关闭
-        event.ignore() 
+        event.ignore()
+    
+    def hideEvent(self, event):
+        """隐藏事件"""
+        print("👁️ 聊天窗口被隐藏")
+        super().hideEvent(event)
+    
+    def showEvent(self, event):
+        """显示事件"""
+        print("📺 showEvent 被调用")
+        super().showEvent(event)
+        # 确保输入框获得焦点
+        self.input_field.setFocus()
+        print("🔍 聊天窗口已显示，输入框已获得焦点")
+        print(f"🔍 窗口几何信息: pos=({self.x()},{self.y()}), size=({self.width()}x{self.height()})")
+        print(f"🔍 窗口标志: {self.windowFlags()}")
+        print(f"🔍 父窗口: {self.parent()}")
+        print(f"🔍 窗口状态: visible={self.isVisible()}, minimized={self.isMinimized()}, hidden={self.isHidden()}")
+    
+    def check_window_status(self):
+        """检查窗口状态"""
+        print(f"🔍 聊天窗口状态检查:")
+        print(f"   - isVisible: {self.isVisible()}")
+        print(f"   - isMinimized: {self.isMinimized()}")  
+        print(f"   - isHidden: {self.isHidden()}")
+        print(f"   - isActiveWindow: {self.isActiveWindow()}")
+        print(f"   - windowState: {self.windowState()}")
+        print(f"   - geometry: {self.geometry()}")
+        return self.isVisible() and not self.isMinimized() and not self.isHidden() 
