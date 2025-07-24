@@ -40,11 +40,11 @@ class VisionModule(BaseModule):
         """初始化OCR引擎"""
         try:
             # 可以使用PaddleOCR或其他OCR库
-            # import paddleocr
-            # self.ocr_engine = paddleocr.PaddleOCR(use_angle_cls=True, lang='ch')
+            import paddleocr
+            self.ocr_engine = paddleocr.PaddleOCR(use_angle_cls=True, lang='ch')
             print("💡 OCR功能需要额外配置")
-        except:
-            print("⚠️ OCR引擎初始化失败")
+        except Exception as e:
+            print(f"⚠️ OCR引擎初始化失败: {e}")
     
     def handle_message(self, message, context=None):
         """处理视觉相关请求"""
@@ -70,10 +70,12 @@ class VisionModule(BaseModule):
             return f"👁️ 屏幕分析遇到问题: {str(e)}"
     
     def capture_screen(self, region=None):
-        """截取屏幕"""
+        """截取屏幕并保存到screenshots文件夹"""
         try:
             import pyautogui
-            
+            import os
+            from datetime import datetime
+
             # 设置截图区域
             if region:
                 screenshot = pyautogui.screenshot(region=region)
@@ -81,19 +83,24 @@ class VisionModule(BaseModule):
                 # 限制截图大小以节省资源
                 max_size = self.config.get('max_image_size', [1920, 1080])
                 screenshot = pyautogui.screenshot()
-                
                 # 如果图像太大，缩放它
                 if screenshot.size[0] > max_size[0] or screenshot.size[1] > max_size[1]:
                     try:
                         from PIL import Image
                         screenshot.thumbnail(max_size, Image.LANCZOS)
                     except ImportError:
-                        # 如果没有PIL，就不缩放
                         pass
-            
+
             self.last_screenshot = screenshot
-            return screenshot
-            
+
+            # 保存到screenshots文件夹
+            save_dir = os.path.join(os.getcwd(), 'screenshots')
+            os.makedirs(save_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            save_path = os.path.join(save_dir, f'screenshot_{timestamp}.png')
+            screenshot.save(save_path)
+
+            return screenshot  # 如需返回路径可 return screenshot, save_path
         except Exception as e:
             print(f"❌ 截图失败: {e}")
             return None
@@ -124,8 +131,8 @@ class VisionModule(BaseModule):
         
         try:
             # 这里应该调用实际的OCR引擎
-            # result = self.ocr_engine.ocr(image_array)
-            # return self.process_ocr_result(result)
+            result = self.ocr_engine.ocr(image)
+            return self.process_ocr_result(result)
             return "需要配置OCR引擎才能识别文字"
         except Exception as e:
             return f"文字识别失败: {e}"
