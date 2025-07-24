@@ -1,0 +1,14 @@
+# DyberPet Agent 最小依赖清单
+# ==========================================
+# 仅包含核心必需依赖，用于基础AI对话功能
+
+# 核心必需依赖
+qwen-agent>=0.0.27          # Qwen Agent SDK - 核心AI对话功能
+python-dotenv>=1.0.0        # 环境变量配置支持
+psutil>=5.9.0               # 系统信息监控
+
+# 使用方法：
+# pip install -r requirements-minimal.txt
+#
+# 注意：需要配置 QWEN_API_KEY 环境变量才能正常使用
+# 获取地址: https://dashscope.aliyun.com/ 
