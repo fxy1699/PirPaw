@@ -1,0 +1,185 @@
+{
+  "global_mappings": {
+    "sleep_keywords": ["睡觉", "休息", "打盹", "小憩", "睡眠", "困了", "想睡"],
+    "walk_keywords": ["走路", "行走", "移动", "散步", "走动", "溜达"],
+    "happy_keywords": ["开心", "高兴", "快乐", "愉快", "兴奋", "开心一下"],
+    "sad_keywords": ["悲伤", "难过", "伤心", "沮丧", "郁闷", "不开心"],
+    "angry_keywords": ["愤怒", "生气", "气愤", "不爽", "火大", "发火"],
+    "stand_keywords": ["站立", "待机", "静止", "不动", "默认", "站着"],
+    "play_keywords": ["玩耍", "游戏", "玩", "娱乐", "嬉戏", "玩一下"]
+  },
+  
+  "pet_specific_mappings": {
+    "Kitty": {
+      "special_actions": {
+        "抓老鼠": "hunt",
+        "晒太阳": "sunbath",
+        "舔毛": "groom",
+        "打滚": "roll"
+      },
+      "preferred_actions": ["sleep", "play", "walk"]
+    },
+    "ChrisKitty": {
+      "special_actions": {
+        "简单动作": "simple_act"
+      },
+      "preferred_actions": ["stand", "onfloor"]
+    },
+    "派蒙": {
+      "special_actions": {
+        "飞行": "fly",
+        "旋转": "spin",
+        "应急食品": "emergency_food"
+      },
+      "preferred_actions": ["default", "fly"]
+    }
+  },
+  
+  "context_rules": {
+    "time_based": {
+      "morning": {
+        "keywords": ["早上", "上午", "早晨", "morning"],
+        "preferred_actions": ["stretch", "wake_up", "active"],
+        "boost_factor": 1.2
+      },
+      "noon": {
+        "keywords": ["中午", "正午", "noon", "midday"],
+        "preferred_actions": ["active", "play", "energetic"],
+        "boost_factor": 1.0
+      },
+      "evening": {
+        "keywords": ["晚上", "傍晚", "evening"],
+        "preferred_actions": ["relax", "calm", "rest"],
+        "boost_factor": 1.1
+      },
+      "night": {
+        "keywords": ["深夜", "夜晚", "night", "late"],
+        "preferred_actions": ["sleep", "rest", "quiet"],
+        "boost_factor": 1.5
+      }
+    },
+    
+    "mood_based": {
+      "happy_mood": {
+        "trigger_keywords": ["开心", "快乐", "高兴", "兴奋"],
+        "preferred_actions": ["happy", "play", "dance", "jump"],
+        "blocked_actions": ["sad", "angry"],
+        "boost_factor": 1.3
+      },
+      "sad_mood": {
+        "trigger_keywords": ["伤心", "难过", "悲伤", "沮丧"],
+        "preferred_actions": ["sad", "rest", "comfort", "sleep"],
+        "blocked_actions": ["happy", "play"],
+        "boost_factor": 1.2
+      },
+      "tired_mood": {
+        "trigger_keywords": ["累", "疲惫", "困", "想休息"],
+        "preferred_actions": ["rest", "sleep", "relax"],
+        "blocked_actions": ["active", "play", "walk"],
+        "boost_factor": 1.4
+      },
+      "energetic_mood": {
+        "trigger_keywords": ["有活力", "精神", "充满活力"],
+        "preferred_actions": ["play", "jump", "active", "walk"],
+        "boost_factor": 1.2
+      }
+    },
+    
+    "state_based": {
+      "low_hp": {
+        "condition": "hp < 30",
+        "preferred_actions": ["sleep", "rest", "eat"],
+        "blocked_actions": ["walk", "play", "jump"],
+        "penalty_factor": 0.3,
+        "message": "宠物血量较低，建议休息"
+      },
+      "high_fv": {
+        "condition": "fv > 80",
+        "preferred_actions": ["play", "happy", "active"],
+        "boost_factor": 1.3,
+        "message": "宠物心情很好，适合互动"
+      },
+      "medium_hp": {
+        "condition": "30 <= hp <= 70",
+        "preferred_actions": ["default", "walk", "play"],
+        "boost_factor": 1.0
+      },
+      "low_fv": {
+        "condition": "fv < 30",
+        "preferred_actions": ["patpat", "feed", "comfort"],
+        "boost_factor": 1.2,
+        "message": "宠物心情不佳，需要关爱"
+      }
+    }
+  },
+  
+  "semantic_patterns": {
+    "action_requests": {
+      "让宠物": {
+        "pattern": "让.*?(睡觉|走路|站立|休息|玩|开心)",
+        "confidence_modifier": 0.9
+      },
+      "想要": {
+        "pattern": "想要.*?(看到|让).*?(睡觉|走路|站立|休息|玩|开心)",
+        "confidence_modifier": 0.85
+      },
+      "可以": {
+        "pattern": "可以.*?(睡觉|走路|站立|休息|玩|开心|做什么)",
+        "confidence_modifier": 0.8
+      },
+      "执行": {
+        "pattern": "执行.*?(睡觉|走路|站立|休息|玩|开心)",
+        "confidence_modifier": 0.95
+      },
+      "做动作": {
+        "pattern": "做.*?(什么|睡觉|走路|站立|休息|玩|开心).*?动作",
+        "confidence_modifier": 0.9
+      }
+    },
+    
+    "question_patterns": {
+      "能力询问": {
+        "pattern": "(能做什么|会什么|有什么动作|支持哪些|可以做)",
+        "response_type": "capabilities_list"
+      },
+      "状态询问": {
+        "pattern": "(状态|怎么样|现在在做什么|当前)",
+        "response_type": "status_info"
+      }
+    }
+  },
+  
+  "response_templates": {
+    "success_messages": [
+      "✅ 小宠物开始执行 {action} 动作了~",
+      "✅ 好的，让小宠物 {action} 一下！",
+      "✅ 小宠物听话地开始 {action} 了！",
+      "✅ 动作执行成功：{action}"
+    ],
+    
+    "failure_messages": [
+      "❌ 抱歉，小宠物现在不能执行这个动作",
+      "❌ 这个动作暂时不可用",
+      "❌ 小宠物累了，暂时无法执行"
+    ],
+    
+    "not_supported_messages": [
+      "🤔 抱歉，当前宠物不支持这个动作",
+      "🤔 这个动作不在小宠物的技能列表中",
+      "🤔 小宠物还没有学会这个动作"
+    ],
+    
+    "unclear_messages": [
+      "🤔 抱歉，我没能理解您想要执行什么动作",
+      "🤔 您可以尝试说'让小猫睡觉'、'走路'、'站立'等",
+      "🤔 请告诉我您希望小宠物做什么动作？"
+    ]
+  },
+  
+  "confidence_thresholds": {
+    "exact_match": 0.95,
+    "fuzzy_match": 0.60,
+    "semantic_match": 0.70,
+    "minimum_execution": 0.50
+  }
+} 

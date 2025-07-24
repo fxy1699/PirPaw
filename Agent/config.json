@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "pet_action"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -41,6 +41,17 @@
       "tracking_interval": 5,
       "auto_start": false,
       "show_detailed_windows": true
+    },
+    "pet_action": {
+      "auto_scan_pets": true,
+      "default_pet": null,
+      "dyber_pet_root": null,
+      "enable_fuzzy_matching": true,
+      "confidence_threshold": 0.6,
+      "max_action_queue": 10,
+      "action_timeout": 30,
+      "enable_context_awareness": true,
+      "response_style": "friendly"
     }
   }
 } 
