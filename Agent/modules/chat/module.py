@@ -475,13 +475,13 @@ class ChatModule(BaseModule):
             try:
                 # 首先尝试Function Call处理
                 function_result = self._try_function_call(message)
-                if function_result:
-                    print(f"✅ Function Call处理成功")
-                    return function_result
+                # if function_result:
+                #     print(f"✅ Function Call处理成功")
+                #     return function_result
                 
                 # 如果没有匹配的Function Call，使用qwen-agent处理
-                print(f"🔄 Function Call无匹配，使用qwen-agent处理")
-                return self._handle_with_qwen_agent(message, context)
+                # print(f"🔄 Function Call无匹配，使用qwen-agent处理")
+                return self._handle_with_qwen_agent(message, context, function_result)
             except Exception as e:
                 print(f"❌ Function Call处理失败: {e}")
                 # 失败时降级到传统模式
@@ -565,12 +565,24 @@ class ChatModule(BaseModule):
             return True
         
         return False
+
+    def _enhance_message_with_function_result(self, message, function_result):
+        """为消息添加上下文信息"""
+        if not message:
+            return message
+        
+        # 添加函数调用结果
+        if function_result:
+            message += f"\n\n{function_result}"
+        
+        return message
     
-    def _handle_with_qwen_agent(self, message, context):
+    def _handle_with_qwen_agent(self, message, context, function_result=None):
         """使用Qwen-Agent处理消息"""
         # 添加上下文信息
         enhanced_message = self._enhance_message_with_context(message, context)
-        
+        enhanced_message = self._enhance_message_with_function_result(enhanced_message, function_result)
+
         # 添加到对话历史
         self.conversation_history.append({
             'role': 'user',
@@ -599,6 +611,9 @@ class ChatModule(BaseModule):
         
         # 清理对话历史格式
         clean_history = self._clean_conversation_history()
+
+        for msg in clean_history:
+            print('\nself msg', msg)
         
         # 调用Agent
         response = []
