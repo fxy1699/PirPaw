@@ -329,6 +329,61 @@ class ChatModule(BaseModule):
             except Exception as e:
                 print(f"❌ Function Call执行失败: {e}")
         
+        # 新增：时间查询
+        if any(word in message_lower for word in ['时间', '几点', '现在时间', '当前时间']):
+            try:
+                print(f"🕐 Function Call: 获取当前时间")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_current_time", {}
+                )
+                return f"🕐 {result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：系统信息查询
+        if any(word in message_lower for word in ['系统', 'cpu', '内存', '性能', '电脑状态']):
+            try:
+                print(f"💻 Function Call: 获取系统信息")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_system_info", {}
+                )
+                return f"💻 系统信息:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：文件信息查询
+        if any(word in message_lower for word in ['文件', '文件夹', '磁盘', '存储']):
+            try:
+                print(f"📁 Function Call: 获取文件信息")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_file_info", {}
+                )
+                return f"📁 文件系统信息:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：追踪状态查询
+        if any(word in message_lower for word in ['追踪状态', '追踪情况', '是否在追踪']):
+            try:
+                print(f"📊 Function Call: 获取追踪状态")
+                result = self.module_registry.call_function_directly(
+                    "tracker_get_tracking_status", {}
+                )
+                return f"📊 追踪状态:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：梦境生成
+        if any(word in message_lower for word in ['梦', '梦境', '做梦', '生成梦', '讲个梦']):
+            try:
+                print(f"🌙 Function Call: 生成梦境")
+                result = self.module_registry.call_function_directly(
+                    "dreamgeneration_generate_dream", {}
+                )
+                return f"🌙 梦境生成:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
         return None
     
     def _build_system_message(self):
