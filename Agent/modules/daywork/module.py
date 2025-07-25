@@ -4,6 +4,8 @@ import os
 import random
 import json
 from datetime import datetime
+import base64
+import mimetypes
 
 
 class DayWork(BaseModule):
@@ -19,29 +21,61 @@ class DayWork(BaseModule):
     def __init__(self):
         super().__init__()
         self.sitting_start_time = None
+        self.image_desc_bot = self._init_image_desc_bot()
 
-    def setup(self, config=None):
-        super().setup(config)
+    def _init_image_desc_bot(self):
+        try:
+            from qwen_agent.agents import Assistant
 
-    def handle_message(self, message, context=None):
-        """处理工作相关请求"""
-        print(f"🔍 处理工作相关请求: {message}")
-        if not any(keyword in message for keyword in ['工作', '总结', '工作总结']):
+            llm_cfg = {"model": "qwen-vl-plus"}
+            system = "你是一个图片内容分析助手，用户会上传一张图片，请你用简洁的语言描述图片的主要内容、场景、事件和细节。"
+            bot = Assistant(
+                llm=llm_cfg,
+                name="图片内容分析助手",
+                description="分析单张图片内容",
+                system_message=system,
+                function_list=[],
+            )
+            return bot
+        except Exception as e:
+            print(f"⚠️ 图片内容分析助手初始化失败: {e}")
+            print("💡 图片内容分析功能将使用简化模式")
             return None
 
+    def _get_image_description(self, image_path):
+        """用image_desc_bot分析单张图片内容，返回描述（Qwen-Agent多模态接口兼容格式）"""
+        if not self.image_desc_bot:
+            return "[未启用图片内容分析助手]"
         try:
-            if "工作" in message or "总结" in message:
-                return self.generate_daily_summary()
+            import mimetypes
+            with open(image_path, "rb") as f:
+                image_bytes = f.read()
+            mime_type, _ = mimetypes.guess_type(image_path)
+            if not mime_type:
+                mime_type = "image/png"
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+            image_url = f"data:{mime_type};base64,{image_b64}"
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"image": image_url},
+                        {"text": "请描述这张图片的内容"}
+                    ]
+                }
+            ]
+            response = []
+            for chunk in self.image_desc_bot.run(messages=messages):
+                response.extend(chunk)
+            if response:
+                return response[-1].get('content', '[未获得图片描述]')
             else:
-                return "📷 工作总结遇到问题: 未知请求" + message + "，请使用工作助手"
-
+                return '[未获得图片描述]'
         except Exception as e:
-            print(f"❌ 工作总结处理失败: {e}")
-            return f"📷 工作总结遇到问题: {str(e)}"
+            return f"[图片描述失败: {e}]"
 
-
-    def generate_daily_summary(self, max_images=10):
-        """生成工作总结：获取今日截图和应用时长统计（仅从app_usage.json读取）"""
+    def generate_daily_summary(self, max_images=4):
+        """生成工作总结：只返回图片描述和应用时长统计，不做大模型总结"""
         today = datetime.now().strftime("%Y%m%d")
         folder = os.path.join(os.getcwd(), "screenshots", today)
         images = []
@@ -53,21 +87,27 @@ class DayWork(BaseModule):
             ]
             if len(images) > max_images:
                 images = random.sample(images, max_images)
-        # 只从Agent/data/app_usage.json读取今日应用时长
-        try:
-            usage_file = os.path.join(
-                os.getcwd(), "data", "app_usage.json"
+        image_descriptions = []
+        for img_path in images:
+            desc = self._get_image_description(img_path)
+            image_descriptions.append(
+                f"图片: {os.path.basename(img_path)}\n描述: {desc}"
             )
+        try:
+            usage_file = os.path.join(os.getcwd(), "data", "app_usage.json")
             if os.path.exists(usage_file):
                 with open(usage_file, "r", encoding="utf-8") as f:
                     usage_data = json.load(f)
                 today_str = datetime.now().strftime("%Y-%m-%d")
                 if today_str in usage_data:
                     app_usage = usage_data[today_str]
-                    # 统计并格式化输出
                     if isinstance(app_usage, dict) and app_usage:
                         lines = ["你今天在以下软件上工作了："]
-                        for app, data in sorted(app_usage.items(), key=lambda x: x[1].get("total_seconds", 0), reverse=True):
+                        for app, data in sorted(
+                            app_usage.items(),
+                            key=lambda x: x[1].get("total_seconds", 0),
+                            reverse=True,
+                        ):
                             seconds = int(data.get("total_seconds", 0))
                             h = seconds // 3600
                             m = (seconds % 3600) // 60
@@ -82,7 +122,28 @@ class DayWork(BaseModule):
                 summary = "未找到应用时长数据文件"
         except Exception as e:
             summary = f"读取应用时长数据失败: {e}"
-        return summary
+        result = "【今日截图内容分析】\n" + "\n\n".join(image_descriptions)
+        result += "\n\n【今日应用使用统计】\n" + summary
+        return result
+
+    def setup(self, config=None):
+        super().setup(config)
+
+    def handle_message(self, message, context=None):
+        """处理工作相关请求"""
+        print(f"🔍 处理工作相关请求: {message}")
+        if not any(keyword in message for keyword in ["工作", "总结", "工作总结"]):
+            return None
+
+        try:
+            if "工作" in message or "总结" in message:
+                return self.generate_daily_summary()
+            else:
+                return "📷 工作总结遇到问题: 未知请求" + message + "，请使用工作助手"
+
+        except Exception as e:
+            print(f"❌ 工作总结处理失败: {e}")
+            return f"📷 工作总结遇到问题: {str(e)}"
 
     def get_capabilities(self):
         """返回模块能力"""
@@ -129,4 +190,4 @@ class DayWork(BaseModule):
         if function_name == "generate_daily_summary":
             return self.generate_daily_summary()
         else:
-            raise ValueError(f"未知功能: {function_name}") 
+            raise ValueError(f"未知功能: {function_name}")
