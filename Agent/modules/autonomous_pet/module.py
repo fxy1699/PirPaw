@@ -18,6 +18,14 @@ from .brain import PetBrain
 from .scheduler import AutonomousScheduler
 from .behaviors import BehaviorExecutor
 
+# 导入日记管理器
+try:
+    from ...data.diary.diary_manager import diary_manager
+    DIARY_AVAILABLE = True
+except ImportError:
+    print("⚠️ 日记管理器不可用，自主行为将不会记录到日记")
+    DIARY_AVAILABLE = False
+
 
 class AutonomousPetModule(BaseModule):
     """自主宠物模块 - 让宠物具有情感、记忆、主动思考和行为的能力"""
@@ -62,15 +70,19 @@ class AutonomousPetModule(BaseModule):
         try:
             import DyberPet.settings as dyber_settings
             if hasattr(dyber_settings, 'autonomous_enabled'):
-                self.config.update({
+                loaded_config = {
                     'autonomous_enabled': dyber_settings.autonomous_enabled,
                     'min_interval_minutes': dyber_settings.autonomous_min_interval,
                     'max_interval_minutes': dyber_settings.autonomous_max_interval,
                     'debug_mode': dyber_settings.autonomous_debug
-                })
-                print(f"📋 从DyberPet设置加载配置: {self.config}")
+                }
+                self.config.update(loaded_config)
+                print(f"📋 从DyberPet设置加载配置: {loaded_config}")
+                print(f"🔍 具体间隔值: min={dyber_settings.autonomous_min_interval}, max={dyber_settings.autonomous_max_interval}")
         except Exception as e:
             print(f"⚠️ 加载DyberPet设置失败，使用默认配置: {e}")
+            import traceback
+            traceback.print_exc()
         
         try:
             # 初始化记忆系统
@@ -116,6 +128,7 @@ class AutonomousPetModule(BaseModule):
     def _apply_config(self):
         """应用配置设置"""
         cfg = self.config
+        print(f"🔧 开始应用配置: {cfg}")
         
         # Debug模式设置
         old_debug_mode = getattr(self, 'debug_mode', False)
@@ -130,9 +143,14 @@ class AutonomousPetModule(BaseModule):
         
         # 自主行为设置
         old_enabled = getattr(self, 'autonomous_enabled', True)
+        old_min = getattr(self, 'min_interval_minutes', 5)
+        old_max = getattr(self, 'max_interval_minutes', 30)
+        
         self.autonomous_enabled = cfg.get('autonomous_enabled', True)
         self.min_interval_minutes = cfg.get('min_interval_minutes', 5)
         self.max_interval_minutes = cfg.get('max_interval_minutes', 30)
+        
+        print(f"⏱️ 间隔配置更新: {old_min}-{old_max}分钟 → {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
         
         # 如果自主行为状态发生变化，重新启动或停止
         if self.autonomous_enabled != old_enabled:
@@ -145,9 +163,21 @@ class AutonomousPetModule(BaseModule):
         
         # 更新调度器的间隔设置
         if hasattr(self, 'scheduler') and self.scheduler:
-            self.scheduler.min_interval = self.min_interval_minutes
-            self.scheduler.max_interval = self.max_interval_minutes
+            self.scheduler.min_interval_minutes = self.min_interval_minutes
+            self.scheduler.max_interval_minutes = self.max_interval_minutes
             print(f"⏰ 思考间隔已更新: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
+            print(f"📋 调度器配置已同步: {self.scheduler.min_interval_minutes}-{self.scheduler.max_interval_minutes}分钟")
+            
+            # 立即重新计算下次行为时间，使新配置生效
+            if hasattr(self.scheduler, '_update_next_behavior_time'):
+                self.scheduler._update_next_behavior_time()
+                if self.scheduler.next_behavior_time:
+                    next_time = self.scheduler.next_behavior_time.strftime("%H:%M:%S")
+                    time_left = (self.scheduler.next_behavior_time - datetime.now()).total_seconds()
+                    minutes_left = int(time_left // 60)
+                    print(f"🔄 下次行为时间已重新计算: {next_time} (还有约{minutes_left}分钟)")
+        else:
+            print("⚠️ 调度器未初始化，无法更新配置")
         
         # 情感设置
         if 'emotion_decay_speed' in cfg:
@@ -279,6 +309,10 @@ class AutonomousPetModule(BaseModule):
             print(f"   🔄 自主行为: {'开启' if self.autonomous_enabled else '关闭'}")
             print(f"   ⏱️ 思考间隔: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
             
+            # 显示调度器实际配置（用于调试）
+            if hasattr(self, 'scheduler') and self.scheduler:
+                print(f"   📋 调度器配置: {self.scheduler.min_interval_minutes}-{self.scheduler.max_interval_minutes}分钟")
+            
             # 计算下次行为时间（不显示错误）
             try:
                 if hasattr(self.scheduler, 'next_behavior_time') and self.scheduler.next_behavior_time:
@@ -354,15 +388,44 @@ class AutonomousPetModule(BaseModule):
                     if action_plan:
                         print(f"🧠 宠物决定执行: {action_plan['action_type']}")
                         
+                        # 记录执行前的情绪状态
+                        emotions_before = self.emotions.emotions.copy() if self.emotions else {}
+                        
                         # 执行行为
                         success = self.behavior_executor.execute_behavior(action_plan)
                         
-                        # 记录结果
+                        # 记录结果到宠物内存
                         self.brain.record_behavior_result(action_plan, success)
                         
                         # 记录执行时间到调度器并更新下次行为时间
                         if hasattr(self.scheduler, 'record_execution'):
                             self.scheduler.record_execution()
+                        
+                        # 记录到日记本
+                        if success and DIARY_AVAILABLE:
+                            try:
+                                emotions_after = self.emotions.emotions.copy() if self.emotions else {}
+                                
+                                # 获取行为内容
+                                behavior_content = action_plan.get('content', '')
+                                if not behavior_content and 'message' in action_plan:
+                                    behavior_content = action_plan['message']
+                                
+                                # 获取当前宠物名称
+                                pet_name = self._get_current_pet_name()
+                                
+                                diary_manager.add_autonomous_behavior_entry(
+                                    behavior_type='proactive',
+                                    action_name=action_plan['action_type'],
+                                    content=behavior_content,
+                                    trigger_reason=action_plan.get('context', {}).get('dominant_emotion', '未知情绪驱动'),
+                                    emotions_before=emotions_before,
+                                    emotions_after=emotions_after,
+                                    pet_name=pet_name
+                                )
+                                print(f"📔 自主行为已记录到日记: {action_plan['action_type']}")
+                            except Exception as e:
+                                print(f"⚠️ 记录自主行为到日记失败: {e}")
                         
                         print(f"✅ 行为执行完成，成功={success}")
                     else:
@@ -594,3 +657,35 @@ class AutonomousPetModule(BaseModule):
             report += f"  {emoji} {emotion}: {bar} ({value:.2f})\n"
         
         return report 
+
+    def _get_current_pet_name(self) -> str:
+        """获取当前宠物名称"""
+        try:
+            # 尝试从DyberPet设置获取当前宠物名称
+            import DyberPet.settings as dyber_settings
+            if hasattr(dyber_settings, 'PET_NAME'):
+                return dyber_settings.PET_NAME
+            elif hasattr(dyber_settings, 'pet_name'):
+                return dyber_settings.pet_name
+            else:
+                return "未知宠物"
+        except Exception:
+            return "未知宠物" 
+
+    def refresh_behavior_schedule(self):
+        """刷新行为调度，使新配置立即生效"""
+        if hasattr(self, 'scheduler') and self.scheduler:
+            # 更新调度器配置
+            self.scheduler.min_interval_minutes = self.min_interval_minutes
+            self.scheduler.max_interval_minutes = self.max_interval_minutes
+            
+            # 重新计算下次行为时间
+            if hasattr(self.scheduler, '_update_next_behavior_time'):
+                self.scheduler._update_next_behavior_time()
+                if self.scheduler.next_behavior_time:
+                    next_time = self.scheduler.next_behavior_time.strftime("%H:%M:%S")
+                    time_left = (self.scheduler.next_behavior_time - datetime.now()).total_seconds()
+                    minutes_left = int(time_left // 60)
+                    print(f"🔄 行为调度已刷新: 下次行为 {next_time} (约{minutes_left}分钟后)")
+                    return True
+        return False 

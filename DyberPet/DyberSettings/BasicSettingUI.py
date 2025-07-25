@@ -455,6 +455,14 @@ class SettingInterface(ScrollArea):
                         if hasattr(module, '_apply_config'):
                             module._apply_config()
                             print(f"✅ 自主宠物设置已更新: {new_config}")
+                            
+                            # 刷新行为调度，使新配置立即生效
+                            if hasattr(module, 'refresh_behavior_schedule'):
+                                success = module.refresh_behavior_schedule()
+                                if success:
+                                    print("🔄 行为调度已刷新，新间隔设置立即生效")
+                                else:
+                                    print("⚠️ 行为调度刷新失败")
                         break
                 else:
                     print("⚠️ 未找到自主宠物模块")

@@ -165,6 +165,8 @@ class DetailViewDialog(QDialog):
             self._add_chat_detail(content_layout)
         elif self.entry['entry_type'] == 'interaction':
             self._add_interaction_detail(content_layout)
+        elif self.entry['entry_type'] == 'autonomous_behavior':
+            self._add_autonomous_behavior_detail(content_layout)
         else:
             self._add_general_detail(content_layout)
         
@@ -318,6 +320,88 @@ class DetailViewDialog(QDialog):
         detail_layout.addWidget(detail_text)
         
         layout.addWidget(detail_group)
+    
+    def _add_autonomous_behavior_detail(self, layout: QVBoxLayout):
+        """添加自主行为详细内容"""
+        content = self.entry.get('content', {})
+        
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+        
+        # 基本信息组
+        basic_group = QGroupBox("🤖 自主行为信息")
+        basic_layout = QGridLayout(basic_group)
+        
+        action_name = content.get('action_name', '未知行为')
+        behavior_type = content.get('behavior_type', '未知类型')
+        trigger_reason = content.get('trigger_reason', '未知原因')
+        behavior_content = content.get('content', '')
+        
+        # 行为名称映射
+        action_names = {
+            'greet': '问候',
+            'play': '玩耍', 
+            'care': '关怀',
+            'seek_attention': '寻求关注',
+            'explore': '探索',
+            'rest': '休息',
+            'self_talk': '自言自语',
+            'tool_call': '工具调用'
+        }
+        
+        display_name = action_names.get(action_name, action_name)
+        
+        basic_layout.addWidget(QLabel("行为类型:"), 0, 0)
+        basic_layout.addWidget(QLabel(f"🤖 {display_name}"), 0, 1)
+        
+        basic_layout.addWidget(QLabel("触发原因:"), 1, 0)
+        basic_layout.addWidget(QLabel(f"🎯 {trigger_reason}"), 1, 1)
+        
+        if behavior_content:
+            basic_layout.addWidget(QLabel("行为内容:"), 2, 0)
+            content_label = QLabel(behavior_content)
+            content_label.setWordWrap(True)
+            content_label.setStyleSheet("padding: 4px; background: #f5f5f5; border-radius: 4px;")
+            basic_layout.addWidget(content_label, 2, 1)
+        
+        layout.addWidget(basic_group)
+        
+        # 情绪状态对比组
+        emotions_before = content.get('emotions_before', {})
+        emotions_after = content.get('emotions_after', {})
+        
+        if emotions_before or emotions_after:
+            emotion_group = QGroupBox("😊 情绪状态变化")
+            emotion_layout = QVBoxLayout(emotion_group)
+            
+            emotion_names = {
+                'happiness': '😊 快乐度',
+                'energy': '⚡ 活力值',
+                'boredom': '😴 无聊度',
+                'curiosity': '🤔 好奇心',
+                'loneliness': '😢 孤独感'
+            }
+            
+            for emotion_key, emotion_name in emotion_names.items():
+                before_val = emotions_before.get(emotion_key, 0)
+                after_val = emotions_after.get(emotion_key, 0)
+                
+                if before_val != after_val:
+                    change = after_val - before_val
+                    change_text = f"{'↗️' if change > 0 else '↘️'} {change:+.2f}"
+                    emotion_text = f"{emotion_name}: {before_val:.2f} → {after_val:.2f} ({change_text})"
+                else:
+                    emotion_text = f"{emotion_name}: {before_val:.2f} (无变化)"
+                
+                emotion_label = QLabel(emotion_text)
+                emotion_label.setStyleSheet("padding: 2px; font-family: 'Consolas', monospace;")
+                emotion_layout.addWidget(emotion_label)
+            
+            layout.addWidget(emotion_group)
     
     def _open_image_externally(self, file_path: str):
         """用系统默认程序打开图像"""
@@ -538,7 +622,8 @@ class DiaryEntryWidget(QFrame):
             'interaction': {'icon': '🔄', 'color': '#FF9800'}, 
             'chat': {'icon': '💬', 'color': '#2196F3'},
             'status_change': {'icon': '📊', 'color': '#9C27B0'},
-            'system': {'icon': '⚙️', 'color': '#607D8B'}
+            'system': {'icon': '⚙️', 'color': '#607D8B'},
+            'autonomous_behavior': {'icon': '🤖', 'color': '#E91E63'}  # 新增自主行为类型
         }
         return type_map.get(entry_type, {'icon': '📝', 'color': '#666'})
     
@@ -552,6 +637,8 @@ class DiaryEntryWidget(QFrame):
             self._add_simple_chat_info(layout, content)
         elif self.entry['entry_type'] == 'interaction':
             self._add_simple_interaction_info(layout, content)
+        elif self.entry['entry_type'] == 'autonomous_behavior':
+            self._add_simple_autonomous_behavior_info(layout, content)
         else:
             # 通用内容显示
             content_text = str(content)[:80] + ('...' if len(str(content)) > 80 else '')
@@ -623,6 +710,44 @@ class DiaryEntryWidget(QFrame):
             details_label = QLabel(details_text)
             details_label.setStyleSheet("color: #666; font-size: 9px; padding: 2px 6px; background: #fff3e0; border-radius: 4px;")
             layout.addWidget(details_label)
+    
+    def _add_simple_autonomous_behavior_info(self, layout: QVBoxLayout, content: Dict):
+        """简化的自主行为信息显示"""
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+        
+        action_name = content.get('action_name', '未知行为')
+        behavior_content = content.get('content', '')
+        trigger_reason = content.get('trigger_reason', '未知原因')
+        
+        # 行为名称映射
+        action_names = {
+            'greet': '问候',
+            'play': '玩耍', 
+            'care': '关怀',
+            'seek_attention': '寻求关注',
+            'explore': '探索',
+            'rest': '休息',
+            'self_talk': '自言自语',
+            'tool_call': '工具调用'
+        }
+        
+        display_name = action_names.get(action_name, action_name)
+        
+        behavior_text = f"🤖 {display_name}"
+        if behavior_content:
+            behavior_text += f"\n💭 {behavior_content[:50]}{'...' if len(behavior_content) > 50 else ''}"
+        if trigger_reason:
+            behavior_text += f"\n🎯 触发: {trigger_reason}"
+        
+        behavior_label = QLabel(behavior_text)
+        behavior_label.setStyleSheet("color: #555; font-size: 9px; padding: 2px 6px; background: #fce4ec; border-radius: 4px;")
+        behavior_label.setWordWrap(True)
+        layout.addWidget(behavior_label)
     
     def mousePressEvent(self, event):
         """鼠标点击事件"""
@@ -1037,7 +1162,8 @@ class DiaryWindow(QWidget):
                 'interaction': '🔄 交互',
                 'chat': '💬 聊天',
                 'status_change': '📊 状态',
-                'system': '⚙️ 系统'
+                'system': '⚙️ 系统',
+                'autonomous_behavior': '🤖 自主行为'
             }
             
             for entry_type, count in type_stats.items():
