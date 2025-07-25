@@ -192,6 +192,7 @@ class WeatherModule(BaseModule):
       "ocr_enabled": true
     },
     "camera": {
+      "enable": true,
       "privacy_mode": true,
       "pose_detection": true
     }

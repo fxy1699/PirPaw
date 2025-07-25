@@ -58,6 +58,7 @@ def load_env_config() -> Dict[str, Any]:
                 "max_image_size": [1920, 1080]
             },
             "camera": {
+                "enabled": True,
                 "privacy_mode": not get_env_bool("ENABLE_CAMERA", False),
                 "pose_detection": get_env_bool("ENABLE_CAMERA", False),
                 "gesture_recognition": False,
