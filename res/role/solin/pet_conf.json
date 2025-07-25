@@ -1,7 +1,7 @@
 {
-  "width": 98,
-  "height": 98,
-  "scale": 1.0,
+  "width": 200,
+  "height": 200,
+  "scale": 0.5,
   
   "refresh": 5,
   "interact_speed":0.02,
