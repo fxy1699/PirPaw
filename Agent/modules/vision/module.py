@@ -24,11 +24,14 @@ class VisionModule(BaseModule):
         try:
             # 检查依赖
             import pyautogui
-            print(f"✅ {self.name} 初始化成功")
+            import PIL
+            print(f"✅ {self.name} 模块依赖检查通过")
             
             # 可选：初始化OCR引擎
             if self.config.get('ocr_enabled', True):
                 self._init_ocr()
+                
+            print(f"✅ {self.name} 初始化成功")
 
             # 注册全局快捷键（Ctrl+Alt+S）- 使用 pynput 替代 keyboard
             try:
@@ -134,23 +137,53 @@ class VisionModule(BaseModule):
             return None
 
     def _copy_image_to_clipboard(self, pil_image):
-        """将PIL图片复制到macOS剪切板"""
+        """将PIL图片复制到剪切板（支持Windows和macOS）"""
         try:
-            from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
-            from Foundation import NSData
-            import io
+            import platform
+            system = platform.system()
+            
+            if system == "Windows":
+                # Windows实现
+                try:
+                    import io
+                    from PIL import Image
+                    import win32clipboard
+                    
+                    output = io.BytesIO()
+                    pil_image.save(output, format='BMP')
+                    data = output.getvalue()[14:]  # Remove BMP header
+                    output.close()
+                    
+                    win32clipboard.OpenClipboard()
+                    win32clipboard.EmptyClipboard()
+                    win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+                    win32clipboard.CloseClipboard()
+                    print("✅ 截图已复制到Windows剪切板！")
+                except ImportError:
+                    # 如果win32clipboard不可用，尝试使用pyperclip
+                    print("⚠️ win32clipboard不可用，跳过剪切板操作")
+                    
+            elif system == "Darwin":
+                # macOS实现
+                from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+                from Foundation import NSData
+                import io
 
-            output = io.BytesIO()
-            pil_image.save(output, format='PNG')
-            data = output.getvalue()
-            output.close()
+                output = io.BytesIO()
+                pil_image.save(output, format='PNG')
+                data = output.getvalue()
+                output.close()
 
-            nsdata = NSData.dataWithBytes_length_(data, len(data))
-            image = NSImage.alloc().initWithData_(nsdata)
-            pb = NSPasteboard.generalPasteboard()
-            pb.clearContents()
-            pb.writeObjects_([image])
-            print("✅ 截图已复制到剪切板！")
+                nsdata = NSData.dataWithBytes_length_(data, len(data))
+                image = NSImage.alloc().initWithData_(nsdata)
+                pb = NSPasteboard.generalPasteboard()
+                pb.clearContents()
+                pb.writeObjects_([image])
+                print("✅ 截图已复制到macOS剪切板！")
+            else:
+                # Linux等其他系统
+                print(f"⚠️ {system}系统暂不支持剪切板操作")
+                
         except Exception as e:
             print(f"⚠️ 复制图片到剪切板失败: {e}")
     
@@ -268,6 +301,20 @@ class VisionModule(BaseModule):
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "simple_screenshot",
+                "description": "快速截屏并保存，不进行任何分析或OCR处理",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "region": {
+                            "type": "string",
+                            "description": "截图区域（可选），格式: 'x,y,width,height'，如 '100,100,800,600'"
+                        }
+                    },
+                    "required": []
+                }
             }
         ]
     
@@ -282,6 +329,8 @@ class VisionModule(BaseModule):
             return self._function_analyze_image(arguments)
         elif function_name == "extract_text":
             return self._function_extract_text(arguments)
+        elif function_name == "simple_screenshot":
+            return self._function_simple_screenshot(arguments)
         else:
             raise ValueError(f"未知功能: {function_name}")
     
@@ -348,4 +397,29 @@ class VisionModule(BaseModule):
             screenshot = self.last_screenshot
         
         text_content = self.extract_text(screenshot)
-        return f"📝 从屏幕提取的文字内容:\n{text_content}" 
+        return f"📝 从屏幕提取的文字内容:\n{text_content}"
+    
+    def _function_simple_screenshot(self, arguments: dict):
+        """Function Call: 简单截屏"""
+        region = arguments.get("region")
+        
+        # 解析region参数
+        region_coords = None
+        if region:
+            try:
+                coords = [int(x.strip()) for x in region.split(',')]
+                if len(coords) == 4:
+                    region_coords = tuple(coords)
+            except:
+                print(f"⚠️ 无效的区域参数: {region}")
+        
+        # 执行截屏
+        from datetime import datetime
+        screenshot = self.capture_screen(region_coords)
+        
+        if screenshot:
+            timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            size_info = f"{screenshot.size[0]}x{screenshot.size[1]}"
+            return f"📸 截屏成功！\n🕒 时间: {timestamp}\n📐 尺寸: {size_info}\n💾 已保存到screenshots文件夹\n📋 已复制到剪切板"
+        else:
+            return "❌ 截屏失败，请检查系统权限"

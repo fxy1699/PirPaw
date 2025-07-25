@@ -122,10 +122,11 @@ class DyberPetAgentIntegration:
                 try:
                     print("🔄 刷新DyberPet菜单以添加聊天功能...")
                     
-                    # 先设置集成成功标志
+                    # 先设置集成成功标志和agent_core引用
                     if self.dyberpet_app:
                         self.dyberpet_app.chat_integration_success = True
-                        print("✅ 已设置chat_integration_success标志")
+                        self.dyberpet_app.agent_core = self.agent_core  # 设置agent_core引用
+                        print("✅ 已设置chat_integration_success标志和agent_core引用")
                     
                     # 再刷新菜单
                     if hasattr(self.pet_widget, '_set_Statusmenu'):

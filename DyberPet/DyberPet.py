@@ -1028,11 +1028,24 @@ class PetWidget(QWidget):
         else:
             print("❌ 不添加智能聊天菜单项")
         
+        # 添加截屏功能（独立于Agent系统）
+        screenshot_actions = []
+        try:
+            # 检查截屏依赖是否可用
+            import pyautogui
+            import PIL
+            print("✅ 添加截屏菜单项（独立模式）")
+            screenshot_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/system/document.svg')), 
+                                           self.tr('截屏'), triggered=self._take_screenshot_standalone))
+        except ImportError as e:
+            print(f"❌ 截屏依赖未安装: {e}")
+            print("💡 请运行: pip install pyautogui pillow")
+        
         self.StatMenu.addActions([
             #Action(FIF.MENU, self.tr('More Options'), triggered=self._show_right_menu),
             Action(QIcon(os.path.join(basedir,'res/icons/dashboard.svg')), self.tr('Dashboard'), triggered=self._show_dashboard),
             Action(QIcon(os.path.join(basedir,'res/icons/SystemPanel.png')), self.tr('System'), triggered=self._show_controlPanel),
-        ] + chat_actions)
+        ] + chat_actions + screenshot_actions)
         self.StatMenu.addSeparator()
 
         self.StatMenu.addMenu(self.act_menu)
@@ -1877,6 +1890,220 @@ class PetWidget(QWidget):
                 
         except Exception as e:
             print(f"❌ 查找Agent核心系统失败: {e}")
+    
+    def _take_screenshot(self):
+        """执行截屏功能"""
+        print("📸 _take_screenshot 被调用")
+        try:
+            # 获取应用实例和Agent核心
+            app = QApplication.instance()
+            if not hasattr(app, 'agent_core') or not app.agent_core:
+                print("❌ Agent核心未初始化")
+                return
+            
+            # 查找Vision模块
+            vision_module = None
+            for module in app.agent_core.modules:
+                if hasattr(module, 'name') and module.name == "屏幕分析":
+                    vision_module = module
+                    break
+            
+            if not vision_module or not vision_module.enabled:
+                print("❌ Vision模块未找到或未启用")
+                return
+            
+            print("📸 开始截屏...")
+            # 调用Vision模块的截屏功能
+            screenshot = vision_module.capture_screen()
+            
+            if screenshot:
+                print("✅ 截屏成功！已保存到screenshots文件夹并复制到剪切板")
+                
+                # 显示成功通知
+                try:
+                    from qfluentwidgets import InfoBar, InfoBarPosition
+                    InfoBar.success(
+                        title="截屏成功",
+                        content="截图已保存到screenshots文件夹并复制到剪切板",
+                        orient=Qt.Horizontal,
+                        isClosable=True,
+                        position=InfoBarPosition.TOP,
+                        duration=3000,
+                        parent=self
+                    )
+                except ImportError:
+                    # 如果qfluentwidgets不可用，使用简单的消息框
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.information(self, "截屏成功", "截图已保存到screenshots文件夹并复制到剪切板")
+            else:
+                print("❌ 截屏失败")
+                # 显示失败通知
+                try:
+                    from qfluentwidgets import InfoBar, InfoBarPosition
+                    InfoBar.error(
+                        title="截屏失败",
+                        content="无法截取屏幕，请检查系统权限",
+                        orient=Qt.Horizontal,
+                        isClosable=True,
+                        position=InfoBarPosition.TOP,
+                        duration=3000,
+                        parent=self
+                    )
+                except ImportError:
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.warning(self, "截屏失败", "无法截取屏幕，请检查系统权限")
+                    
+        except Exception as e:
+            print(f"❌ 截屏功能执行失败: {e}")
+            try:
+                from qfluentwidgets import InfoBar, InfoBarPosition
+                InfoBar.error(
+                    title="截屏错误",
+                    content=f"截屏功能出现错误：{str(e)}",
+                    orient=Qt.Horizontal,
+                    isClosable=True,
+                    position=InfoBarPosition.TOP,
+                    duration=3000,
+                    parent=self
+                )
+            except ImportError:
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "截屏错误", f"截屏功能出现错误：{str(e)}")
+    
+    def _take_screenshot_standalone(self):
+        """独立截屏功能（不依赖Agent系统）"""
+        print("📸 _take_screenshot_standalone 被调用")
+        try:
+            import pyautogui
+            from PIL import Image
+            import os
+            from datetime import datetime
+            
+            print("📸 开始独立截屏...")
+            
+            # 截取屏幕
+            screenshot = pyautogui.screenshot()
+            
+            # 保存到screenshots文件夹（按天分文件夹）
+            save_dir = os.path.join(os.getcwd(), 'screenshots')
+            day_folder = datetime.now().strftime('%Y%m%d')
+            save_dir = os.path.join(save_dir, day_folder)
+            os.makedirs(save_dir, exist_ok=True)
+            timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+            save_path = os.path.join(save_dir, f'screenshot_{timestamp}.png')
+            screenshot.save(save_path)
+            
+            # 复制到剪切板
+            self._copy_to_clipboard_standalone(screenshot)
+            
+            print(f"✅ 截屏成功！保存到: {save_path}")
+            
+            # 使用DyberPet气泡系统显示成功提示
+            try:
+                # 创建自定义气泡配置
+                bubble_dict = {
+                    "icon": "bb_feed_done",  # 使用现有的成功图标
+                    "message": f"📸 截屏成功！已保存到 {os.path.basename(save_path)}",
+                    "countdown": None,
+                    "start_audio": None,
+                    "end_audio": None,
+                    "bubble_type": "screenshot_success"
+                }
+                
+                # 触发气泡提示
+                if hasattr(self, 'bubble_manager') and settings.bubble_on:
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+                    print("✅ 已通过气泡系统显示截屏成功提示")
+                else:
+                    # 降级到简单提示
+                    print("⚠️ 气泡系统不可用，使用备用提示")
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.information(self, "截屏成功", f"截图已保存到screenshots文件夹\n文件名: {os.path.basename(save_path)}")
+            except Exception as e:
+                print(f"⚠️ 气泡提示失败: {e}")
+                # 降级到简单提示
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.information(self, "截屏成功", f"截图已保存到screenshots文件夹\n文件名: {os.path.basename(save_path)}")
+                
+        except Exception as e:
+            print(f"❌ 独立截屏功能执行失败: {e}")
+            # 使用DyberPet气泡系统显示失败提示
+            try:
+                # 创建自定义气泡配置
+                bubble_dict = {
+                    "icon": "bb_hp_low",  # 使用警告图标
+                    "message": f"❌ 截屏失败：{str(e)}",
+                    "countdown": None,
+                    "start_audio": None,
+                    "end_audio": None,
+                    "bubble_type": "screenshot_error"
+                }
+                
+                # 触发气泡提示
+                if hasattr(self, 'bubble_manager') and settings.bubble_on:
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+                    print("✅ 已通过气泡系统显示截屏失败提示")
+                else:
+                    # 降级到简单提示
+                    from PyQt5.QtWidgets import QMessageBox
+                    QMessageBox.critical(self, "截屏失败", f"截屏功能出现错误：{str(e)}")
+            except Exception as bubble_e:
+                print(f"⚠️ 气泡提示失败: {bubble_e}")
+                # 降级到简单提示
+                from PyQt5.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "截屏失败", f"截屏功能出现错误：{str(e)}")
+    
+    def _copy_to_clipboard_standalone(self, pil_image):
+        """独立的剪切板复制功能"""
+        try:
+            import platform
+            system = platform.system()
+            
+            if system == "Windows":
+                # Windows实现
+                try:
+                    import io
+                    import win32clipboard
+                    
+                    output = io.BytesIO()
+                    pil_image.save(output, format='BMP')
+                    data = output.getvalue()[14:]  # Remove BMP header
+                    output.close()
+                    
+                    win32clipboard.OpenClipboard()
+                    win32clipboard.EmptyClipboard()
+                    win32clipboard.SetClipboardData(win32clipboard.CF_DIB, data)
+                    win32clipboard.CloseClipboard()
+                    print("✅ 截图已复制到Windows剪切板！")
+                except ImportError:
+                    print("⚠️ win32clipboard不可用，跳过剪切板操作")
+                    
+            elif system == "Darwin":
+                # macOS实现
+                try:
+                    from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+                    from Foundation import NSData
+                    import io
+
+                    output = io.BytesIO()
+                    pil_image.save(output, format='PNG')
+                    data = output.getvalue()
+                    output.close()
+
+                    nsdata = NSData.dataWithBytes_length_(data, len(data))
+                    image = NSImage.alloc().initWithData_(nsdata)
+                    pb = NSPasteboard.generalPasteboard()
+                    pb.clearContents()
+                    pb.writeObjects_([image])
+                    print("✅ 截图已复制到macOS剪切板！")
+                except ImportError:
+                    print("⚠️ macOS剪切板库不可用，跳过剪切板操作")
+            else:
+                # Linux等其他系统
+                print(f"⚠️ {system}系统暂不支持剪切板操作")
+                
+        except Exception as e:
+            print(f"⚠️ 复制图片到剪切板失败: {e}")
     
     def _reset_chat_window_state(self):
         """重置聊天窗口状态"""
