@@ -66,8 +66,16 @@ class AgentCore:
         # 合并配置
         if json_config:
             self.config = json_config
+            
+            # 立即设置API key到环境变量（确保qwen-agent能找到）
+            chat_config = self.config.get('module_configs', {}).get('chat', {})
+            api_key = chat_config.get('qwen_api_key', '')
+            if api_key:
+                os.environ['DASHSCOPE_API_KEY'] = api_key
+                print(f"🔑 已设置DASHSCOPE_API_KEY环境变量")
+            
             # print(f"[DEBUG] config: {json.dumps(self.config, indent=4)}")
-            print(f"🌍 使用环境变量配置 (Qwen API: {'✅' if api_status['qwen_api']['valid_format'] else '⚠️'})，并已加载 config.json")
+            print(f"🌍 使用环境变量配置 (Qwen API: {'✅' if api_status and api_status['qwen_api']['valid_format'] else '⚠️'})，并已加载 config.json")
         elif env_config:
             self.config = env_config
             print("使用默认配置")

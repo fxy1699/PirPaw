@@ -241,6 +241,40 @@ class AutonomousPetModule(BaseModule):
             except Exception as e:
                 print(f"   🎯 主导情绪: 获取失败 ({e})")
             
+            # 显示可触发的行为（新增）
+            try:
+                behavior_types = ['seek_attention', 'play', 'rest', 'explore', 'self_talk', 'greet', 'care']
+                triggerable_behaviors = []
+                for behavior in behavior_types:
+                    if self.emotions.should_trigger_behavior(behavior):
+                        prob = self.emotions.get_behavior_probability(behavior)
+                        triggerable_behaviors.append(f"{behavior}({prob:.2f})")
+                
+                if triggerable_behaviors:
+                    print(f"   🎭 可触发行为: {', '.join(triggerable_behaviors)}")
+                else:
+                    print(f"   🎭 可触发行为: 无")
+            except Exception as e:
+                print(f"   🎭 可触发行为: 检查失败 ({e})")
+            
+            # 显示大脑冷却状态（新增）
+            try:
+                if self.brain:
+                    now = datetime.now()
+                    time_since_last = now - self.brain.last_proactive_action
+                    cooldown_minutes = self.brain.min_action_interval.total_seconds() / 60
+                    time_since_minutes = time_since_last.total_seconds() / 60
+                    
+                    if time_since_last >= self.brain.min_action_interval:
+                        print(f"   🧠 大脑状态: 可行动 (距离上次 {time_since_minutes:.1f}分钟)")
+                    else:
+                        remaining_minutes = cooldown_minutes - time_since_minutes
+                        print(f"   🧠 大脑状态: 冷却中 (还需 {remaining_minutes:.1f}分钟)")
+                else:
+                    print(f"   🧠 大脑状态: 未初始化")
+            except Exception as e:
+                print(f"   🧠 大脑状态: 检查失败 ({e})")
+            
             # 显示自主行为状态
             print(f"   🔄 自主行为: {'开启' if self.autonomous_enabled else '关闭'}")
             print(f"   ⏱️ 思考间隔: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
@@ -301,6 +335,10 @@ class AutonomousPetModule(BaseModule):
         
         while self.is_running:
             try:
+                # 更新下次行为时间（用于debug显示）
+                if hasattr(self.scheduler, '_update_next_behavior_time'):
+                    self.scheduler._update_next_behavior_time()
+                
                 # 让大脑思考
                 action_plan = self.brain.think()
                 
@@ -312,6 +350,10 @@ class AutonomousPetModule(BaseModule):
                     
                     # 记录结果
                     self.brain.record_behavior_result(action_plan, success)
+                    
+                    # 记录执行时间到调度器
+                    if hasattr(self.scheduler, 'record_execution'):
+                        self.scheduler.record_execution()
                     
                     # 如果执行成功，稍微延长下次行为间隔
                     if success:

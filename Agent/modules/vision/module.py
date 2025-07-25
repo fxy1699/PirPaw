@@ -165,20 +165,20 @@ class VisionModule(BaseModule):
                     
             elif system == "Darwin":
                 # macOS实现
-                from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
-                from Foundation import NSData
-                import io
+            from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+            from Foundation import NSData
+            import io
 
-                output = io.BytesIO()
-                pil_image.save(output, format='PNG')
-                data = output.getvalue()
-                output.close()
+            output = io.BytesIO()
+            pil_image.save(output, format='PNG')
+            data = output.getvalue()
+            output.close()
 
-                nsdata = NSData.dataWithBytes_length_(data, len(data))
-                image = NSImage.alloc().initWithData_(nsdata)
-                pb = NSPasteboard.generalPasteboard()
-                pb.clearContents()
-                pb.writeObjects_([image])
+            nsdata = NSData.dataWithBytes_length_(data, len(data))
+            image = NSImage.alloc().initWithData_(nsdata)
+            pb = NSPasteboard.generalPasteboard()
+            pb.clearContents()
+            pb.writeObjects_([image])
                 print("✅ 截图已复制到macOS剪切板！")
             else:
                 # Linux等其他系统
@@ -397,7 +397,7 @@ class VisionModule(BaseModule):
             screenshot = self.last_screenshot
         
         text_content = self.extract_text(screenshot)
-        return f"📝 从屏幕提取的文字内容:\n{text_content}"
+        return f"📝 从屏幕提取的文字内容:\n{text_content}" 
     
     def _function_simple_screenshot(self, arguments: dict):
         """Function Call: 简单截屏"""

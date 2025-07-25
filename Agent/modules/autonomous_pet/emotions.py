@@ -34,10 +34,13 @@ class EmotionSystem:
         
         self.last_update = datetime.now()
         
-        # 从数据库加载最新状态
-        if self.memory:
+        # 从数据库加载最新状态 (临时禁用以测试衰减)
+        if False and self.memory:  # 临时禁用
             saved_emotions = self.memory.get_latest_emotion_state()
+            print(f"😊 从数据库加载情绪状态: {saved_emotions}")
             self.emotions.update(saved_emotions)
+        else:
+            print(f"😊 使用默认情绪状态: {self.emotions}")
     
     def update_emotions(self, force_save=False):
         """自然衰减情感值"""
@@ -45,11 +48,22 @@ class EmotionSystem:
         hours_passed = (now - self.last_update).total_seconds() / 3600
         
         if hours_passed > 0.1:  # 至少6分钟更新一次
+            old_emotions = self.emotions.copy()
+            
             for emotion, decay_rate in self.decay_rates.items():
                 change = decay_rate * hours_passed
                 self.emotions[emotion] = max(0.0, min(1.0, self.emotions[emotion] + change))
             
             self.last_update = now
+            
+            # 调试输出：显示情绪变化
+            print(f"😊 情绪自然衰减 (经过 {hours_passed:.2f} 小时):")
+            for emotion in self.emotions:
+                old_val = old_emotions[emotion]
+                new_val = self.emotions[emotion]
+                change = new_val - old_val
+                if abs(change) > 0.001:  # 只显示有明显变化的
+                    print(f"   {self._emotion_emoji(emotion)} {emotion}: {old_val:.3f} → {new_val:.3f} ({change:+.3f})")
             
             # 定期保存到数据库
             if force_save or hours_passed > 1.0:
@@ -131,17 +145,15 @@ class EmotionSystem:
         return "平静"
     
     def should_trigger_behavior(self, behavior_type: str) -> bool:
-        """判断是否应该触发某种行为"""
-        self.update_emotions()
-        
+        """检查是否应该触发某种行为"""
         triggers = {
-            'seek_attention': self.emotions['loneliness'] > 0.7 or self.emotions['boredom'] > 0.8,
-            'play': self.emotions['energy'] > 0.6 and self.emotions['happiness'] > 0.5,
-            'rest': self.emotions['energy'] < 0.3,
-            'explore': self.emotions['curiosity'] > 0.7 and self.emotions['energy'] > 0.4,
-            'self_talk': self.emotions['boredom'] > 0.6 and self.emotions['loneliness'] > 0.5,
-            'greet': self.emotions['happiness'] > 0.6 and self.emotions['energy'] > 0.5,
-            'care': self.emotions['loneliness'] < 0.3 and self.emotions['happiness'] > 0.7
+            'seek_attention': self.emotions['loneliness'] > 0.5 or self.emotions['boredom'] > 0.6,
+            'play': self.emotions['happiness'] > 0.6 and self.emotions['energy'] > 0.4,  # 开心且有精力时玩耍
+            'rest': self.emotions['energy'] < 0.4,  # 精力低时休息
+            'explore': self.emotions['curiosity'] > 0.5 and self.emotions['energy'] > 0.3,  # 好奇且有精力时探索
+            'self_talk': self.emotions['boredom'] > 0.4 or (self.emotions['loneliness'] > 0.3 and self.emotions['happiness'] < 0.6),
+            'greet': self.emotions['happiness'] > 0.5 and self.emotions['energy'] > 0.4,  # 开心且有精力时问候
+            'care': self.emotions['happiness'] > 0.6 or (self.emotions['loneliness'] < 0.4 and self.emotions['energy'] > 0.5)  # 开心时关怀他人
         }
         
         return triggers.get(behavior_type, False)

@@ -43,22 +43,34 @@ class PetBrain:
     def think(self) -> Optional[Dict[str, Any]]:
         """思考并决定下一步行动"""
         # 更新情感状态
-        self.emotions.update_emotions()
+        print("🧠 大脑思考: 开始更新情绪状态")
+        self.emotions.update_emotions(force_save=False)
+        print(f"🧠 大脑思考: 情绪更新完成，当前情绪: {self.emotions.emotions}")
         
         # 检查是否需要冷却
         if not self._can_take_action():
+            print("🧠 大脑思考: 仍在冷却期，跳过行动")
             return None
         
         # 分析当前状态
         context = self._analyze_context()
+        print(f"🧠 大脑思考: 上下文分析完成，主导情绪={context.get('dominant_emotion')}")
         
         # 生成可能的行为
         possible_behaviors = self._generate_possible_behaviors(context)
+        print(f"🧠 大脑思考: 生成了 {len(possible_behaviors)} 个可能行为")
+        
+        if possible_behaviors:
+            for i, behavior in enumerate(possible_behaviors[:3]):  # 只显示前3个
+                print(f"   {i+1}. {behavior['type']} (概率:{behavior['probability']:.2f}, 适配度:{behavior['context_score']:.2f})")
         
         # 选择最佳行为
         if possible_behaviors:
             chosen_behavior = self._choose_behavior(possible_behaviors)
+            print(f"🧠 大脑思考: 选择执行 {chosen_behavior['type']}")
             return self._create_action_plan(chosen_behavior, context)
+        else:
+            print("🧠 大脑思考: 没有合适的行为可执行")
         
         return None
     
