@@ -1,9 +1,22 @@
 import time
 from Agent.base_module import BaseModule
 import threading
+import platform
 
-# 假设 is_any_video_playing 已经在 Agent/modules/watchtv/video_detect.py 中实现
-from .video_detect import VideoPlaybackDetector
+# 检查依赖
+try:
+    if platform.system() == "Windows":
+        import comtypes
+        from .video_detect import VideoPlaybackDetector
+        DEPENDENCIES_AVAILABLE = True
+    else:
+        # 非Windows系统不需要这个模块
+        DEPENDENCIES_AVAILABLE = False
+        print("⚠️ WatchTV模块仅支持Windows系统")
+except ImportError as e:
+    DEPENDENCIES_AVAILABLE = False
+    print(f"⚠️ WatchTV模块依赖缺失: {e}")
+    print("💡 请安装: pip install comtypes pycaw")
 
 class WatchTVModule(BaseModule):
     name = "看电视检测"
@@ -18,8 +31,18 @@ class WatchTVModule(BaseModule):
         self.last_status = False
         self.agent_core_ref = None
         self.detector = None
+        
+        # 检查依赖是否可用
+        if not DEPENDENCIES_AVAILABLE:
+            self.initialized = False
+            print(f"❌ {self.name} 模块因依赖缺失而禁用")
+            return
 
     def setup(self, config=None):
+        if not DEPENDENCIES_AVAILABLE:
+            print(f"⚠️ {self.name} 模块跳过初始化（依赖不可用）")
+            return
+            
         super().setup(config)
         self.detector = VideoPlaybackDetector()
         self.running = True

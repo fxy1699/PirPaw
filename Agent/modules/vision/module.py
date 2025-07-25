@@ -165,21 +165,24 @@ class VisionModule(BaseModule):
                     
             elif system == "Darwin":
                 # macOS实现
-            from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
-            from Foundation import NSData
-            import io
+                try:
+                    from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
+                    from Foundation import NSData
+                    import io
 
-            output = io.BytesIO()
-            pil_image.save(output, format='PNG')
-            data = output.getvalue()
-            output.close()
+                    output = io.BytesIO()
+                    pil_image.save(output, format='PNG')
+                    data = output.getvalue()
+                    output.close()
 
-            nsdata = NSData.dataWithBytes_length_(data, len(data))
-            image = NSImage.alloc().initWithData_(nsdata)
-            pb = NSPasteboard.generalPasteboard()
-            pb.clearContents()
-            pb.writeObjects_([image])
-                print("✅ 截图已复制到macOS剪切板！")
+                    nsdata = NSData.dataWithBytes_length_(data, len(data))
+                    image = NSImage.alloc().initWithData_(nsdata)
+                    pb = NSPasteboard.generalPasteboard()
+                    pb.clearContents()
+                    pb.writeObjects_([image])
+                    print("✅ 截图已复制到macOS剪切板！")
+                except ImportError:
+                    print("⚠️ macOS剪切板依赖不可用，跳过剪切板操作")
             else:
                 # Linux等其他系统
                 print(f"⚠️ {system}系统暂不支持剪切板操作")

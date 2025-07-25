@@ -1,0 +1,5 @@
+# WatchTV模块依赖（仅Windows系统需要）
+comtypes>=1.1.10
+pycaw>=20220416
+psutil>=5.8.0
+pywin32>=301 
