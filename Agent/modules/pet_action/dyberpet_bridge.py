@@ -81,9 +81,9 @@ class DyberPetBridge:
                 self.pet_widget = pet_widget
                 print("✅ 使用传入的DyberPet实例")
             
-            # 方式2: 尝试从全局变量或模块中获取
-            elif self._try_find_dyberpet_instance():
-                print("✅ 自动发现DyberPet实例")
+            # 方式2: 在主线程中尝试从全局变量或模块中获取
+            elif self._try_find_dyberpet_in_main_thread():
+                print("✅ 在主线程中自动发现DyberPet实例")
             
             # 方式3: 创建新的连接
             else:
@@ -109,7 +109,13 @@ class DyberPetBridge:
             return False
     
     def _try_find_dyberpet_instance(self) -> bool:
-        """尝试自动发现DyberPet实例"""
+        """尝试自动发现DyberPet实例（延迟到主线程连接时执行）"""
+        # 在Agent核心初始化阶段不进行UI相关操作
+        # 这个方法将在主线程的connect_to_dyberpet中调用
+        return False
+    
+    def _try_find_dyberpet_in_main_thread(self) -> bool:
+        """在主线程中尝试自动发现DyberPet实例"""
         try:
             # 方法1: 检查全局应用实例
             from PySide6.QtWidgets import QApplication
@@ -131,7 +137,7 @@ class DyberPetBridge:
             return False
             
         except Exception as e:
-            print(f"⚠️ 自动发现DyberPet实例失败: {e}")
+            print(f"⚠️ 在主线程中自动发现DyberPet实例失败: {e}")
             return False
     
     def _validate_connection(self) -> bool:
@@ -427,7 +433,7 @@ class DyberPetBridge:
                 
                 # 线程安全调用
                 try:
-                    from PySide6.QtCore import QMetaObject, Qt, QThread, QTimer
+                    from PySide6.QtCore import QMetaObject, Qt, QThread, QTimer, QObject, Signal
                     
                     # 检查是否在主线程中
                     is_main_thread = QThread.currentThread() == self.app_instance.thread() if self.app_instance else True
@@ -469,92 +475,80 @@ class DyberPetBridge:
                         
                         print(f"✅ 主线程调用成功: {mapped_action}")
                     else:
-                        # 在非主线程中直接尝试调用，忽略线程限制
-                        print(f"🔄 非主线程，直接尝试调用: _show_act('{mapped_action}')")
+                        # 使用信号槽机制实现线程安全调用
+                        print(f"🔄 非主线程，使用信号槽机制调用: _show_act('{mapped_action}')")
                         
-                        try:
-                            print(f"🎯 直接调用: _show_act('{mapped_action}')")
-                            self._debug_action_execution(mapped_action)
-                            
-                            # Hook Interaction Worker
-                            original_start_interact = self._hook_interaction_worker()
-                            
-                            # Hook原始_show_act方法来监控调用
-                            original_show_act = self.pet_widget._show_act
-                            def monitored_show_act(act_name):
-                                print(f"🎬 _show_act被调用: {act_name}")
-                                try:
-                                    result = original_show_act(act_name)
-                                    print(f"🎬 _show_act执行完成: {act_name}")
-                                    return result
-                                except Exception as e:
-                                    print(f"🎬 _show_act执行异常: {e}")
-                                    raise
-                            
-                            # 临时替换方法
-                            self.pet_widget._show_act = monitored_show_act
-                            
-                            # 直接执行动作
-                            self.pet_widget._show_act(mapped_action)
-                            
-                            # 恢复原始方法
-                            self.pet_widget._show_act = original_show_act
-                            
-                            # 恢复Interaction Worker
-                            if original_start_interact and hasattr(self.pet_widget, 'workers'):
-                                inter_worker = self.pet_widget.workers.get('Interaction')
-                                if inter_worker:
-                                    inter_worker.start_interact = original_start_interact
-                            
-                            print(f"✅ 直接调用成功: {mapped_action}")
-                            
-                        except Exception as e:
-                            print(f"❌ 直接调用失败: {e}")
-                            import traceback
-                            print(f"📋 错误详情: {traceback.format_exc()}")
-                            
-                            # 如果直接调用失败，尝试使用信号机制
-                            print(f"🔄 尝试使用信号机制调用...")
-                            try:
-                                # 使用QApplication.postEvent发送自定义事件
-                                from PySide6.QtCore import QEvent
-                                from PySide6.QtWidgets import QApplication
+                        # 创建信号发射器（如果还没有的话）
+                        if not hasattr(self, 'action_executor'):
+                            class ActionExecutor(QObject):
+                                # 定义信号
+                                execute_action_signal = Signal(str)  # 动作名称
+                                action_completed = Signal(bool, str)  # 成功/失败，结果消息
                                 
-                                class ActionEvent(QEvent):
-                                    def __init__(self, action_name):
-                                        super().__init__(QEvent.User)
-                                        self.action_name = action_name
+                                def __init__(self, bridge):
+                                    super().__init__()
+                                    self.bridge = bridge
+                                    # 连接信号到槽函数
+                                    self.execute_action_signal.connect(self.execute_action_slot)
                                 
-                                # 创建事件处理器
-                                def eventFilter(obj, event):
-                                    if isinstance(event, ActionEvent):
-                                        try:
-                                            print(f"🎯 事件驱动调用: _show_act('{event.action_name}')")
-                                            obj._show_act(event.action_name)
-                                            print(f"✅ 事件驱动调用成功: {event.action_name}")
-                                        except Exception as e:
-                                            print(f"❌ 事件驱动调用失败: {e}")
-                                        return True
-                                    return False
-                                
-                                # 安装事件过滤器
-                                original_filter = getattr(self.pet_widget, 'eventFilter', None)
-                                self.pet_widget.eventFilter = eventFilter
-                                
-                                # 发送事件
-                                event = ActionEvent(mapped_action)
-                                QApplication.postEvent(self.pet_widget, event)
-                                
-                                print(f"📨 已发送动作事件: {mapped_action}")
-                                
-                            except Exception as event_error:
-                                print(f"❌ 信号机制也失败: {event_error}")
+                                def execute_action_slot(self, action_name):
+                                    """在主线程中执行动作的槽函数"""
+                                    try:
+                                        print(f"🎯 信号槽调用: _show_act('{action_name}')")
+                                        self.bridge._debug_action_execution(action_name)
+                                        
+                                        # Hook Interaction Worker
+                                        original_start_interact = self.bridge._hook_interaction_worker()
+                                        
+                                        # Hook原始_show_act方法来监控调用
+                                        original_show_act = self.bridge.pet_widget._show_act
+                                        def monitored_show_act(act_name):
+                                            print(f"🎬 _show_act被调用: {act_name}")
+                                            try:
+                                                result = original_show_act(act_name)
+                                                print(f"🎬 _show_act执行完成: {act_name}")
+                                                return result
+                                            except Exception as e:
+                                                print(f"🎬 _show_act执行异常: {e}")
+                                                raise
+                                        
+                                        # 临时替换方法
+                                        self.bridge.pet_widget._show_act = monitored_show_act
+                                        
+                                        # 执行动作
+                                        self.bridge.pet_widget._show_act(action_name)
+                                        
+                                        # 恢复原始方法
+                                        self.bridge.pet_widget._show_act = original_show_act
+                                        
+                                        # 恢复Interaction Worker
+                                        if original_start_interact and hasattr(self.bridge.pet_widget, 'workers'):
+                                            inter_worker = self.bridge.pet_widget.workers.get('Interaction')
+                                            if inter_worker:
+                                                inter_worker.start_interact = original_start_interact
+                                        
+                                        print(f"✅ 信号槽调用成功: {action_name}")
+                                        self.action_completed.emit(True, f"动作 {action_name} 执行成功")
+                                        
+                                    except Exception as e:
+                                        print(f"❌ 信号槽调用失败: {e}")
+                                        import traceback
+                                        print(f"📋 错误详情: {traceback.format_exc()}")
+                                        self.action_completed.emit(False, f"动作执行失败: {e}")
+                            
+                            # 创建执行器并移动到主线程
+                            self.action_executor = ActionExecutor(self)
+                            self.action_executor.moveToThread(self.app_instance.thread() if self.app_instance else QThread.currentThread())
                         
-                        print(f"📞 已尝试调用: {mapped_action}")
-                    
+                        # 发射信号执行动作
+                        print(f"📤 发射动作执行信号: {mapped_action}")
+                        self.action_executor.execute_action_signal.emit(mapped_action)
+                        
+                        print(f"✅ 已调度动作到主线程: {mapped_action}")
+                
                 except Exception as call_error:
                     print(f"❌ 调用_show_act失败: {call_error}")
-                    raise call_error
+                    return False
                 
                 # 更新状态
                 self._update_pet_state()

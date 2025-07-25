@@ -1,0 +1,35 @@
+{
+  "autonomous_enabled": true,
+  "min_interval_minutes": 3,
+  "max_interval_minutes": 15,
+  "behavior_cooldown_minutes": 2,
+  "emotion_decay_speed": 1.0,
+  "behavior_settings": {
+    "seek_attention_threshold": 0.7,
+    "self_talk_threshold": 0.6,
+    "greet_probability": 0.3,
+    "care_probability": 0.2,
+    "explore_threshold": 0.7,
+    "rest_threshold": 0.3,
+    "play_threshold": 0.6
+  },
+  "tool_settings": {
+    "enable_weather_check": true,
+    "enable_time_check": true,
+    "enable_learning": true,
+    "enable_reminders": true,
+    "enable_system_check": false
+  },
+  "memory_settings": {
+    "cleanup_days": 30,
+    "max_interactions_history": 1000,
+    "max_behaviors_history": 500
+  },
+  "personality": {
+    "chattiness": 0.7,
+    "curiosity": 0.8,
+    "caring": 0.6,
+    "playfulness": 0.7,
+    "independence": 0.4
+  }
+} 

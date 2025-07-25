@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "dreamgeneration", "watchtv"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "autonomouspet", "dreamgeneration", "daywork", "watchtv"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -8,7 +8,7 @@
   },
   "module_configs": {
     "chat": {
-      "qwen_api_key": "",
+      "qwen_api_key": "sk-2677250bb83f44d781f22ac0805eb0a6",
       "model": "qwen-plus",
       "enable_thinking": true,
       "max_tokens": 2000,
@@ -39,7 +39,7 @@
     "tracker": {
       "data_file": "data/app_usage.json",
       "tracking_interval": 5,
-      "auto_start": false,
+      "auto_start": true,
       "show_detailed_windows": true
     },
     "petaction": {

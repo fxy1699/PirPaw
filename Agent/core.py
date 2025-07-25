@@ -77,7 +77,7 @@ class AgentCore:
     def get_default_config(self):
         """获取默认配置"""
         return {
-            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "dreamgeneration", "watchtv"],
+            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "dreamgeneration", "daywork", "watchtv"],
             "global_settings": {
                 "language": "zh-CN",
                 "debug_mode": False
@@ -131,6 +131,19 @@ class AgentCore:
                     "enabled": True,
                     "check_interval": 5,
                     "personality": "看电视检测助手"
+                },
+                "dreamgeneration": {
+                    "enabled": True,
+                    "model": "qwen-plus",
+                    "max_tokens": 2000,
+                    "max_conversation_history": 20,
+                    "max_exec_steps": 10,
+                    "personality": "梦境生成助手", 
+                    "save_conversation_history": False
+                },
+                "daywork": {
+                    "enabled": True,
+                    "max_images": 10
                 }
             }
         }

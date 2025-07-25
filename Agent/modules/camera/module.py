@@ -226,4 +226,82 @@ class CameraModule(BaseModule):
                 self.camera.release()
             except:
                 pass
-        super().cleanup() 
+        super().cleanup()
+
+    # ============ Function Call 接口 ============
+    
+    def get_function_definitions(self) -> list:
+        """获取Camera模块的Function Call工具定义"""
+        return [
+            {
+                "name": "check_posture",
+                "description": "检查用户当前坐姿和姿态，分析头部、肩膀、背部姿态",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "check_health_status",
+                "description": "检查用户健康状态，包括久坐时间和健康建议",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "check_fatigue",
+                "description": "检查用户疲劳状态，分析眼部疲劳和精神状态",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            },
+            {
+                "name": "get_camera_status",
+                "description": "获取摄像头功能状态和隐私设置信息",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
+            }
+        ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用Camera模块的具体功能"""
+        if not self.enabled:
+            if self.config.get('privacy_mode', True):
+                raise RuntimeError("🔒 摄像头功能处于隐私保护模式，请在设置中启用")
+            else:
+                raise RuntimeError(f"模块 {self.name} 已禁用")
+        
+        if function_name == "check_posture":
+            return self._function_check_posture(arguments)
+        elif function_name == "check_health_status":
+            return self._function_check_health_status(arguments)
+        elif function_name == "check_fatigue":
+            return self._function_check_fatigue(arguments)
+        elif function_name == "get_camera_status":
+            return self._function_get_camera_status(arguments)
+        else:
+            raise ValueError(f"未知功能: {function_name}")
+    
+    def _function_check_posture(self, arguments: dict):
+        """Function Call: 检查姿态"""
+        return self.check_posture()
+    
+    def _function_check_health_status(self, arguments: dict):
+        """Function Call: 检查健康状态"""
+        return self.check_health_status()
+    
+    def _function_check_fatigue(self, arguments: dict):
+        """Function Call: 检查疲劳状态"""
+        return self.check_fatigue()
+    
+    def _function_get_camera_status(self, arguments: dict):
+        """Function Call: 获取摄像头状态"""
+        return self.get_camera_status() 

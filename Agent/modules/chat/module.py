@@ -329,6 +329,71 @@ class ChatModule(BaseModule):
             except Exception as e:
                 print(f"❌ Function Call执行失败: {e}")
         
+        # 新增：时间查询
+        if any(word in message_lower for word in ['时间', '几点', '现在时间', '当前时间']):
+            try:
+                print(f"🕐 Function Call: 获取当前时间")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_current_time", {}
+                )
+                return f"🕐 {result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：系统信息查询
+        if any(word in message_lower for word in ['系统', 'cpu', '内存', '性能', '电脑状态']):
+            try:
+                print(f"💻 Function Call: 获取系统信息")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_system_info", {}
+                )
+                return f"💻 系统信息:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：文件信息查询
+        if any(word in message_lower for word in ['文件', '文件夹', '磁盘', '存储']):
+            try:
+                print(f"📁 Function Call: 获取文件信息")
+                result = self.module_registry.call_function_directly(
+                    "tools_get_file_info", {}
+                )
+                return f"📁 文件系统信息:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：追踪状态查询
+        if any(word in message_lower for word in ['追踪状态', '追踪情况', '是否在追踪']):
+            try:
+                print(f"📊 Function Call: 获取追踪状态")
+                result = self.module_registry.call_function_directly(
+                    "tracker_get_tracking_status", {}
+                )
+                return f"📊 追踪状态:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
+        # 新增：梦境生成
+        if any(word in message_lower for word in ['梦', '梦境', '做梦', '生成梦', '讲个梦']):
+            try:
+                print(f"🌙 Function Call: 生成梦境")
+                result = self.module_registry.call_function_directly(
+                    "dreamgeneration_generate_dream", {}
+                )
+                return f"🌙 梦境生成:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+
+        if any(word in message_lower for word in ['工作', '总结', '工作总结']):
+            try:
+                print(f"📊 Function Call: 工作总结")
+                result = self.module_registry.call_function_directly(
+                    "daywork_generate_daily_summary", {}
+                )
+                return f"📊 工作总结:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
         return None
     
     def _build_system_message(self):
@@ -387,7 +452,10 @@ class ChatModule(BaseModule):
     def handle_message(self, message, context=None):
         """处理对话消息 - 优先使用qwen-agent的Function Call"""
         if not self.enabled:
+            print(f"❌ ChatModule未启用，跳过消息: '{message}'")
             return None
+        
+        print(f"📝 ChatModule处理消息: '{message}'")
         
         # 更新交互统计
         self.last_interaction_time = datetime.now()
@@ -399,30 +467,40 @@ class ChatModule(BaseModule):
                              hasattr(self, '_function_calls_available') and
                              self._function_calls_available)
         
+        print(f"🔧 Function Call状态: agent={self.agent is not None}, local_mode={self.using_local_mode}, registry={self.module_registry is not None}, available={getattr(self, '_function_calls_available', False)}")
+        
         if has_function_calls:
             # 如果有Function Call功能，优先处理所有消息
             print(f"🤖 Function Call模式接管消息处理")
             try:
                 # 首先尝试Function Call处理
                 function_result = self._try_function_call(message)
-                if function_result:
-                    return function_result
+                # if function_result:
+                #     print(f"✅ Function Call处理成功")
+                #     return function_result
                 
                 # 如果没有匹配的Function Call，使用qwen-agent处理
-                return self._handle_with_qwen_agent(message, context)
+                # print(f"🔄 Function Call无匹配，使用qwen-agent处理")
+                return self._handle_with_qwen_agent(message, context, function_result)
             except Exception as e:
                 print(f"❌ Function Call处理失败: {e}")
                 # 失败时降级到传统模式
                 return None
         else:
             # 没有Function Call功能时，使用传统的过滤逻辑
-            if not self._should_handle_message(message):
+            should_handle = self._should_handle_message(message)
+            print(f"🎯 传统模式过滤结果: {should_handle}")
+            
+            if not should_handle:
+                print(f"❌ 消息被过滤，不处理: '{message}'")
                 return None
             
             try:
                 if self.agent:
+                    print(f"🤖 使用qwen-agent处理")
                     return self._handle_with_qwen_agent(message, context)
                 else:
+                    print(f"🏠 使用本地模式处理")
                     return self._handle_local_mode(message, context)
                     
             except Exception as e:
@@ -431,11 +509,15 @@ class ChatModule(BaseModule):
     
     def _should_handle_message(self, message):
         """判断是否应该处理此消息"""
-        # 基本对话关键词
+        # 基本对话关键词（扩展更全面的词汇）
         chat_keywords = [
             '聊天', '对话', '你好', 'hello', 'hi', '帮助', '问一下', 
             '小柏', '助手', '你能', '可以', '怎么', '什么', '为什么',
-            '?', '？', '吗', '呢', '呀', '吧'
+            '?', '？', '吗', '呢', '呀', '吧',
+            # 新增：身份询问相关
+            '你', '你是', '是谁', '介绍', '自己', '身份',
+            # 新增：常见对话词
+            '谢谢', '再见', '好的', '知道了', '明白', '不错'
         ]
         
         # 工具相关关键词 - 包含新集成的工具功能
@@ -469,7 +551,7 @@ class ChatModule(BaseModule):
             return True
         
         # 如果是问句（包含疑问词），但不包含专门模块关键词
-        question_words = ['何时', '何地', '何人', '如何', '是否', '能否', '会不会']
+        question_words = ['何时', '何地', '何人', '如何', '是否', '能否', '会不会', '谁', '哪里', '什么时候']
         if any(word in message for word in question_words) and not has_specialized:
             return True
         
@@ -477,13 +559,30 @@ class ChatModule(BaseModule):
         if len(message.strip()) <= 20 and not any(char.isdigit() for char in message) and not has_specialized:
             return True
         
+        # 最后的兜底策略：如果消息不为空且不包含专门模块关键词，就处理
+        if message.strip() and not has_specialized:
+            print(f"🔍 兜底处理消息: '{message}'")
+            return True
+        
         return False
+
+    def _enhance_message_with_function_result(self, message, function_result):
+        """为消息添加上下文信息"""
+        if not message:
+            return message
+        
+        # 添加函数调用结果
+        if function_result:
+            message += f"\n\n{function_result}"
+        
+        return message
     
-    def _handle_with_qwen_agent(self, message, context):
+    def _handle_with_qwen_agent(self, message, context, function_result=None):
         """使用Qwen-Agent处理消息"""
         # 添加上下文信息
         enhanced_message = self._enhance_message_with_context(message, context)
-        
+        enhanced_message = self._enhance_message_with_function_result(enhanced_message, function_result)
+
         # 添加到对话历史
         self.conversation_history.append({
             'role': 'user',
@@ -512,6 +611,9 @@ class ChatModule(BaseModule):
         
         # 清理对话历史格式
         clean_history = self._clean_conversation_history()
+
+        for msg in clean_history:
+            print('\nself msg', msg)
         
         # 调用Agent
         response = []

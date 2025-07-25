@@ -125,16 +125,21 @@ class DreamGenerationModule(BaseModule):
         self.dream_bot = self._init_agent_service()
 
     def _init_agent_service(self):
-        llm_cfg = {'model': 'qwen-max'}
-        system = '你扮演一个梦境文本生成助手，能够根据用户提供的心情关键词，创作一段有画面感的梦境场景或故事。梦境应富有想象力、细节丰富、情感饱满。'
-        bot = Assistant(
-            llm=llm_cfg,
-            name='梦境生成助手',
-            description='生成梦境文本',
-            system_message=system,
-            function_list=[],
-        )
-        return bot
+        try:
+            llm_cfg = {'model': 'qwen-max'}
+            system = '你扮演一个梦境文本生成助手，能够根据用户提供的心情关键词，创作一段有画面感的梦境场景或故事。梦境应富有想象力、细节丰富、情感饱满。'
+            bot = Assistant(
+                llm=llm_cfg,
+                name='梦境生成助手',
+                description='生成梦境文本',
+                system_message=system,
+                function_list=[],
+            )
+            return bot
+        except Exception as e:
+            print(f"⚠️ 梦境生成模块初始化失败: {e}")
+            print("💡 梦境生成功能将使用简化模式")
+            return None
 
     def _get_emotion_keywords(self):
         emotion_weights = [emotion['prob'] for emotion in self.emotion_json]
@@ -151,8 +156,12 @@ class DreamGenerationModule(BaseModule):
         """
         if "梦" not in message:
             return None
-        keywords = self._get_emotion_keywords()
-        return self._generate_dream(keywords)
+        try:
+            keywords = self._get_emotion_keywords()
+            return self._generate_dream(keywords)
+        except Exception as e:
+            print(f"❌ 梦境生成处理失败: {e}")
+            return "抱歉，梦境生成功能暂时不可用。"
 
     def get_capabilities(self) -> list:
         return [
@@ -167,6 +176,14 @@ class DreamGenerationModule(BaseModule):
                 "parameters": []
             }
         ]
+    
+    def call_function(self, function_name: str, arguments: dict):
+        """调用模块功能"""
+        if function_name == "generate_dream":
+            keywords = self._get_emotion_keywords()
+            return self._generate_dream(keywords)
+        else:
+            raise ValueError(f"未知的功能: {function_name}")
 
     def _generate_dream(self, keywords: list) -> str:
         """
@@ -175,6 +192,11 @@ class DreamGenerationModule(BaseModule):
         # 构造 prompt
         keywords_str = '、'.join(keywords)
         print(f"[DEBUG] 梦境关键词：{keywords_str}")
+        
+        # 如果dream_bot不可用，使用简化模式
+        if not self.dream_bot:
+            return self._generate_simple_dream(keywords_str)
+        
         prompt = (
             f"请以以下心情为主题，创作一段有画面感的梦境场景或故事，要求细节丰富、情感饱满，富有想象力。\n"
             f"要求以第一人称描述，以跟朋友讲故事的口吻叙述。200字左右。仅描述梦境，不要透露有关提示词的内容。"
@@ -190,5 +212,18 @@ class DreamGenerationModule(BaseModule):
                 # print(f"[DEBUG] bot response: {response}")
             response = response[0]["content"]
         except Exception as e:
-            response = f"梦境生成失败：{e}"
+            print(f"❌ 梦境生成失败: {e}")
+            response = self._generate_simple_dream(keywords_str)
         return response
+    
+    def _generate_simple_dream(self, keywords_str: str) -> str:
+        """简化模式：生成基础梦境文本"""
+        # 预定义的梦境模板
+        dream_templates = [
+            f"那天晚上，我做了一个梦。梦中我置身于一个充满{keywords_str}氛围的世界里。四周的景象让我感到深深的情感共鸣，仿佛整个世界都在诉说着内心的故事。",
+            f"在梦里，我经历了一段奇妙的旅程。{keywords_str}的情绪如影随形，让我在梦境中体验到了前所未有的感受。",
+            f"我做了一个关于{keywords_str}的梦。梦中的场景如此真实，让我醒来后仍然沉浸在那份独特的情感中。"
+        ]
+        
+        import random
+        return random.choice(dream_templates)

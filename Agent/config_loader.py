@@ -33,7 +33,7 @@ def load_env_config() -> Dict[str, Any]:
     
     # 构建配置字典
     config = {
-        "enabled_modules": get_env_list("ENABLED_MODULES", ["chat", "vision", "camera", "tools", "tracker", "petaction"]),
+        "enabled_modules": get_env_list("ENABLED_MODULES", ["chat", "vision", "camera", "tools", "tracker", "petaction", "autonomouspet"]),
         "global_settings": {
             "language": get_env_str("LANGUAGE", "zh-CN"),
             "debug_mode": get_env_bool("DEBUG_MODE", False),
