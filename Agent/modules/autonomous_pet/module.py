@@ -335,43 +335,44 @@ class AutonomousPetModule(BaseModule):
         
         while self.is_running:
             try:
-                # 更新下次行为时间（用于debug显示）
-                if hasattr(self.scheduler, '_update_next_behavior_time'):
-                    self.scheduler._update_next_behavior_time()
-                
-                # 让大脑思考
-                action_plan = self.brain.think()
-                
-                if action_plan:
-                    print(f"🧠 宠物决定执行: {action_plan['action_type']}")
-                    
-                    # 执行行为
-                    success = self.behavior_executor.execute_behavior(action_plan)
-                    
-                    # 记录结果
-                    self.brain.record_behavior_result(action_plan, success)
-                    
-                    # 记录执行时间到调度器
-                    if hasattr(self.scheduler, 'record_execution'):
-                        self.scheduler.record_execution()
-                    
-                    # 如果执行成功，稍微延长下次行为间隔
-                    if success:
-                        sleep_time = self.scheduler.get_next_interval() * 1.5
-                    else:
-                        sleep_time = self.scheduler.get_next_interval() * 0.8
+                # 检查是否到了执行时间
+                should_execute = False
+                if hasattr(self.scheduler, 'next_behavior_time') and self.scheduler.next_behavior_time:
+                    now = datetime.now()
+                    if now >= self.scheduler.next_behavior_time:
+                        should_execute = True
+                        print(f"⏰ 到达预定执行时间，开始思考...")
                 else:
-                    # 没有行为需要执行，正常间隔
-                    sleep_time = self.scheduler.get_next_interval()
+                    # 如果没有预定时间，立即执行一次
+                    should_execute = True
+                    print(f"⏰ 首次执行或时间未设置，立即开始思考...")
                 
-                # 休眠直到下次检查
-                sleep_time = max(30, min(sleep_time, 1800))  # 30秒到30分钟之间
-                print(f"😴 下次思考在 {sleep_time/60:.1f} 分钟后...")
+                if should_execute:
+                    # 让大脑思考
+                    action_plan = self.brain.think()
+                    
+                    if action_plan:
+                        print(f"🧠 宠物决定执行: {action_plan['action_type']}")
+                        
+                        # 执行行为
+                        success = self.behavior_executor.execute_behavior(action_plan)
+                        
+                        # 记录结果
+                        self.brain.record_behavior_result(action_plan, success)
+                        
+                        # 记录执行时间到调度器并更新下次行为时间
+                        if hasattr(self.scheduler, 'record_execution'):
+                            self.scheduler.record_execution()
+                        
+                        print(f"✅ 行为执行完成，成功={success}")
+                    else:
+                        print(f"🤔 大脑思考后决定暂不行动")
+                        # 即使不执行行为，也要更新下次行为时间
+                        if hasattr(self.scheduler, '_update_next_behavior_time'):
+                            self.scheduler._update_next_behavior_time()
                 
-                for _ in range(int(sleep_time)):
-                    if not self.is_running:
-                        break
-                    time.sleep(1)
+                # 短暂休眠后继续检查
+                time.sleep(10)  # 每10秒检查一次是否到了执行时间
                 
             except Exception as e:
                 print(f"⚠️ 自主行为循环出错: {e}")

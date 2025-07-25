@@ -17,7 +17,7 @@ class PetBrain:
         self.agent_core = agent_core
         
         # 决策冷却时间（避免过于频繁的行为）
-        self.last_proactive_action = datetime.now() - timedelta(hours=1)
+        self.last_proactive_action = datetime.now() - timedelta(minutes=10)  # 改为10分钟前
         self.min_action_interval = timedelta(minutes=5)  # 最少5分钟间隔
         
         # 行为类型定义
@@ -78,7 +78,16 @@ class PetBrain:
         """检查是否可以执行主动行为"""
         now = datetime.now()
         time_since_last = now - self.last_proactive_action
-        return time_since_last >= self.min_action_interval
+        minutes_since_last = time_since_last.total_seconds() / 60
+        min_interval_minutes = self.min_action_interval.total_seconds() / 60
+        
+        can_act = time_since_last >= self.min_action_interval
+        
+        print(f"🧠 冷却检查: 距离上次主动行为 {minutes_since_last:.1f}分钟, 最小间隔 {min_interval_minutes}分钟, 可行动={can_act}")
+        print(f"🧠 上次主动行为时间: {self.last_proactive_action.strftime('%H:%M:%S')}")
+        print(f"🧠 当前时间: {now.strftime('%H:%M:%S')}")
+        
+        return can_act
     
     def _analyze_context(self) -> Dict[str, Any]:
         """分析当前上下文"""
@@ -348,6 +357,10 @@ class PetBrain:
     def record_behavior_result(self, action_plan: Dict[str, Any], success: bool, 
                              user_response: str = ""):
         """记录行为执行结果"""
+        # 更新上次主动行为时间
+        self.last_proactive_action = datetime.now()
+        print(f"🧠 更新上次主动行为时间: {self.last_proactive_action.strftime('%H:%M:%S')}")
+        
         if self.memory:
             self.memory.save_behavior(
                 behavior_type='proactive',
