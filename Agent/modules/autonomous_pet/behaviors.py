@@ -19,9 +19,26 @@ class BehaviorExecutor:
         self.ui_callback = None
         self.bubble_callback = None  # 新增：气泡接口
         
+        # Agent核心引用（用于调用其他模块工具）
+        self.agent_core = None
+        
         # 行为状态跟踪
         self.last_behavior_time = None  # 新增：记录上次行为时间
+    
+    def set_agent_core(self, agent_core):
+        """设置Agent核心引用"""
+        print(f"🎭 行为执行器开始设置Agent核心引用...")
+        print(f"   agent_core: {agent_core}")
+        print(f"   agent_core是否为None: {agent_core is None}")
         
+        self.agent_core = agent_core
+        
+        if agent_core:
+            print(f"🎭 行为执行器已连接到Agent核心，可调用其他模块功能")
+            print(f"   可用模块数量: {len(agent_core.modules)}")
+        else:
+            print("⚠️ 传入的Agent核心为None")
+    
     def set_chat_interface(self, chat_interface):
         """设置聊天界面接口"""
         self.chat_interface = chat_interface
@@ -121,9 +138,16 @@ class BehaviorExecutor:
         reason = action_plan.get('reason', '好奇心驱动')
         
         print(f"🔧 宠物想要使用工具: {tool} (原因: {reason})")
+        print(f"🔍 检查Agent核心连接状态: self.agent_core={self.agent_core is not None}")
         
-        # 模拟工具调用结果
-        result = self._simulate_tool_call(tool)
+        # 尝试真实工具调用
+        if self.agent_core:
+            print("✅ Agent核心已连接，使用真实工具调用")
+            result = self._call_real_tool(tool, reason)
+        else:
+            # 降级到模拟工具调用
+            print("⚠️ Agent核心未连接，使用模拟工具调用")
+            result = self._simulate_tool_call(tool)
         
         # 生成反馈消息
         feedback = self._generate_tool_feedback(tool, result, reason)
@@ -136,13 +160,7 @@ class BehaviorExecutor:
         # 优先使用气泡显示工具调用结果
         if self.bubble_callback:
             try:
-                bubble_dict = {
-                    'message': feedback,
-                    'bubble_type': f'autonomous_tool_{tool}',
-                    'icon': 'system',
-                    'start_audio': 'system',
-                    'end_audio': None
-                }
+                bubble_dict = self._create_bubble_dict('tool_call', feedback, feedback)
                 self.bubble_callback(bubble_dict)
                 print(f"✅ 工具调用结果已通过气泡显示")
             except Exception as e:
@@ -161,12 +179,134 @@ class BehaviorExecutor:
         if self.memory:
             self.memory.save_interaction(
                 interaction_type='tool_call',
-                content=f"使用工具: {tool}",
-                response=feedback,
-                success=success
+                content=f"工具: {tool}, 结果: {result.get('data', '未知')}"
             )
         
         return success
+    
+    def _call_real_tool(self, tool_name: str, reason: str) -> Dict[str, Any]:
+        """调用真实的工具功能"""
+        try:
+            # 工具名称映射到实际的模块功能
+            tool_mapping = {
+                # 时间和系统工具
+                'get_time': 'tools_get_current_time',
+                'check_system': 'tools_get_system_info',
+                'get_file_info': 'tools_get_file_info',
+                
+                # 屏幕和视觉工具
+                'take_screenshot': 'vision_simple_screenshot',
+                'analyze_screen': 'vision_capture_screen',
+                'extract_text': 'vision_extract_text',
+                'analyze_image': 'vision_analyze_image',
+                
+                # 宠物动作工具
+                'pet_status': 'petaction_get_pet_status',
+                'switch_pet': 'petaction_switch_pet',
+                'list_pets': 'petaction_list_available_pets',
+                'control_pet': 'petaction_control_pet_action',
+                
+                # 使用追踪工具
+                'get_usage_stats': 'tracker_get_usage_stats',
+                'start_tracking': 'tracker_start_tracking',
+                'stop_tracking': 'tracker_stop_tracking',
+                'tracking_status': 'tracker_get_tracking_status',
+                'usage_report': 'tracker_generate_usage_report',
+                
+                # 健康和姿态工具
+                'check_posture': 'camera_check_posture',
+                'check_health': 'camera_check_health_status',
+                'check_fatigue': 'camera_check_fatigue',
+                'camera_status': 'camera_get_camera_status',
+                'take_photo': 'camera_capture_photo',
+                
+                # 工作和生活工具
+                'work_summary': 'daywork_generate_daily_summary',
+                'generate_dream': 'dreamgeneration_generate_dream',
+                'watch_status': 'watchtv_get_watch_status',
+                
+                # 兼容旧的工具名称
+                'check_weather': 'tools_get_current_time',  # 暂时映射到时间
+                'learn_something': 'dreamgeneration_generate_dream',  # 映射到梦境生成
+                'remind_user': 'tools_get_current_time'  # 暂时映射到时间
+            }
+            
+            # 获取对应的功能名称
+            function_name = tool_mapping.get(tool_name, 'tools_get_current_time')
+            
+            print(f"🔧 调用真实工具: {tool_name} -> {function_name}")
+            
+            # 查找对应的模块和功能
+            for module in self.agent_core.modules:
+                if hasattr(module, 'get_available_functions'):
+                    functions = module.get_available_functions()
+                    for func_info in functions:
+                        if func_info['name'] == function_name:
+                            # 找到对应的功能，调用它
+                            try:
+                                # 根据不同工具类型构造合适的消息
+                                message = self._get_tool_message(tool_name, function_name, reason)
+                                result_text = module.handle_message(message)
+                                
+                                return {
+                                    'success': True,
+                                    'data': result_text,
+                                    'tool_used': function_name,
+                                    'original_tool': tool_name
+                                }
+                            except Exception as e:
+                                print(f"⚠️ 调用工具 {function_name} 失败: {e}")
+                                break
+            
+            # 如果没找到对应工具，降级到模拟
+            print(f"⚠️ 未找到工具 {function_name}，使用模拟结果")
+            return self._simulate_tool_call(tool_name)
+            
+        except Exception as e:
+            print(f"❌ 真实工具调用失败: {e}")
+            return self._simulate_tool_call(tool_name)
+    
+    def _get_tool_message(self, tool_name: str, function_name: str, reason: str) -> str:
+        """根据工具类型生成合适的消息"""
+        # 根据工具类型生成自然语言消息
+        tool_messages = {
+            'get_time': '现在几点了？',
+            'check_system': '系统状态如何？',
+            'get_file_info': '查看文件信息',
+            
+            'take_screenshot': '截个屏看看',
+            'analyze_screen': '分析一下屏幕内容',
+            'extract_text': '提取屏幕上的文字',
+            'analyze_image': '分析图像内容',
+            
+            'pet_status': '宠物状态',
+            'switch_pet': '切换宠物',
+            'list_pets': '列出所有宠物',
+            'control_pet': '控制宠物动作',
+            
+            'get_usage_stats': '今天的使用统计',
+            'start_tracking': '开始追踪',
+            'stop_tracking': '停止追踪',
+            'tracking_status': '追踪状态',
+            'usage_report': '生成使用报告',
+            
+            'check_posture': '检查我的坐姿',
+            'check_health': '检查健康状态',
+            'check_fatigue': '检查疲劳状态',
+            'camera_status': '摄像头状态',
+            'take_photo': '拍个照',
+            
+            'work_summary': '生成工作总结',
+            'generate_dream': '生成一个梦境',
+            'watch_status': '检查是否在看视频',
+            
+            # 兼容旧工具
+            'check_weather': '现在几点了？',
+            'learn_something': '生成一个梦境',
+            'remind_user': '现在几点了？'
+        }
+        
+        return tool_messages.get(tool_name, f"执行{tool_name}")
     
     def _format_behavior_message(self, action_type: str, content: str) -> str:
         """格式化行为消息"""
@@ -323,42 +463,183 @@ class BehaviorExecutor:
         return results.get(tool, {'success': False, 'data': '未知工具'})
     
     def _generate_tool_feedback(self, tool: str, result: Dict[str, Any], reason: str) -> str:
-        """生成工具调用反馈消息"""
+        """生成工具调用反馈消息 - 基于真实结果的智能回复"""
         if not result['success']:
-            return f"呜...{tool}工具好像用不了了。"
+            error_responses = [
+                f"哎呀...{tool}工具好像出问题了呢~",
+                f"唔...{tool}暂时用不了，等会再试试吧！",
+                f"工具{tool}罢工了！我先休息一下~"
+            ]
+            return random.choice(error_responses)
         
-        data = result['data']
+        data = str(result['data'])
         
-        feedback_templates = {
-            'check_weather': [
-                f"我查了下天气：{data}！",
-                f"今天的天气是：{data}呢~",
-                f"天气情况：{data}，记得适当添衣哦！"
-            ],
-            'get_time': [
+        # 根据不同工具类型生成智能回复
+        if tool == 'get_time':
+            return self._generate_time_feedback(data, reason)
+        elif tool == 'check_system':
+            return self._generate_system_feedback(data, reason)
+        elif tool == 'pet_status':
+            return self._generate_pet_status_feedback(data, reason)
+        elif tool == 'take_screenshot':
+            return self._generate_screenshot_feedback(data, reason)
+        elif tool == 'get_usage_stats':
+            return self._generate_usage_stats_feedback(data, reason)
+        elif tool == 'check_posture':
+            return self._generate_posture_feedback(data, reason)
+        elif tool == 'generate_dream':
+            return self._generate_dream_feedback(data, reason)
+        elif tool == 'analyze_screen':
+            return self._generate_screen_analysis_feedback(data, reason)
+        elif tool == 'work_summary':
+            return self._generate_work_summary_feedback(data, reason)
+        elif tool == 'remind_user':
+            return self._generate_reminder_feedback(data, reason)
+        else:
+            # 通用回复
+            return self._generate_generic_feedback(tool, data, reason)
+    
+    def _generate_time_feedback(self, data: str, reason: str) -> str:
+        """生成时间查询的反馈"""
+        import datetime
+        now = datetime.datetime.now()
+        hour = now.hour
+        
+        if 6 <= hour < 9:
+            time_greetings = [
+                f"早上好！现在是 {data}，新的一天开始啦~",
+                f"时间是 {data}，早起的鸟儿有虫吃哦！",
+                f"现在 {data}，今天要加油呢！"
+            ]
+        elif 12 <= hour < 14:
+            time_greetings = [
+                f"午饭时间！现在是 {data}，记得吃饭哦~",
+                f"时间 {data}，该补充能量了！",
+                f"现在 {data}，午休时间到了吗？"
+            ]
+        elif 18 <= hour < 22:
+            time_greetings = [
+                f"傍晚了呢，现在是 {data}，今天辛苦了~",
+                f"时间 {data}，该放松一下了！",
+                f"现在 {data}，晚饭时间到！"
+            ]
+        elif hour >= 22 or hour < 6:
+            time_greetings = [
+                f"深夜了...现在是 {data}，该休息了哦！",
+                f"时间 {data}，夜深了要早点睡~",
+                f"现在 {data}，熬夜对身体不好呢！"
+            ]
+        else:
+            time_greetings = [
                 f"现在时间是 {data}！",
                 f"让我看看...现在是 {data}",
                 f"时间：{data}，时间过得真快呢！"
-            ],
-            'learn_something': [
-                f"我刚刚{data}！好有趣～",
-                f"学习时间！{data}",
-                f"又涨知识了：{data}"
-            ],
-            'remind_user': [
-                f"小提醒：{data}",
-                f"关心你一下：{data}",
-                f"友情提醒：{data}"
-            ],
-            'check_system': [
-                f"系统检查结果：{data}",
-                f"让我看看系统状态...{data}",
-                f"检查完毕：{data}"
             ]
-        }
         
-        templates = feedback_templates.get(tool, [f"工具 {tool} 返回：{data}"])
-        return random.choice(templates)
+        return random.choice(time_greetings)
+    
+    def _generate_system_feedback(self, data: str, reason: str) -> str:
+        """生成系统检查的反馈"""
+        # 尝试解析系统信息
+        if "CPU" in data or "内存" in data or "Memory" in data:
+            if "高" in data or "High" in data or any(word in data for word in ["90%", "95%", "100%"]):
+                return f"哇！系统有点累呢：{data[:50]}...要不要休息一下？"
+            elif "正常" in data or "Normal" in data or any(word in data for word in ["30%", "40%", "50%"]):
+                return f"系统状态不错：{data[:50]}...运行很流畅呢！"
+            else:
+                return f"系统检查完毕：{data[:50]}...看起来还行~"
+        else:
+            return f"让我看看系统状态...{data[:50]}...嗯，了解了！"
+    
+    def _generate_pet_status_feedback(self, data: str, reason: str) -> str:
+        """生成宠物状态的反馈"""
+        status_responses = [
+            f"让我看看自己的状态...{data[:40]}...感觉还不错呢！",
+            f"我现在的状态是：{data[:40]}...怎么样，还可以吧？",
+            f"自检结果：{data[:40]}...我还是很健康的！",
+            f"状态报告：{data[:40]}...今天的我很棒哦~"
+        ]
+        return random.choice(status_responses)
+    
+    def _generate_screenshot_feedback(self, data: str, reason: str) -> str:
+        """生成截图的反馈"""
+        screenshot_responses = [
+            f"咔嚓！我拍了张照片：{data[:30]}...你在做什么呢？",
+            f"截图完成！{data[:30]}...屏幕上的内容很有趣呢~",
+            f"拍照成功：{data[:30]}...让我看看你在忙什么！",
+            f"截屏啦！{data[:30]}...记录下这一刻~"
+        ]
+        return random.choice(screenshot_responses)
+    
+    def _generate_usage_stats_feedback(self, data: str, reason: str) -> str:
+        """生成使用统计的反馈"""
+        if "小时" in data or "hour" in data:
+            usage_responses = [
+                f"使用统计：{data[:40]}...你今天很努力呢！",
+                f"时间统计：{data[:40]}...工作要劳逸结合哦~",
+                f"使用情况：{data[:40]}...记得适当休息！"
+            ]
+        else:
+            usage_responses = [
+                f"统计结果：{data[:40]}...数据很有趣呢！",
+                f"使用报告：{data[:40]}...我帮你记录着~",
+                f"数据分析：{data[:40]}...了解了你的习惯！"
+            ]
+        return random.choice(usage_responses)
+    
+    def _generate_posture_feedback(self, data: str, reason: str) -> str:
+        """生成姿态检查的反馈"""
+        if "正确" in data or "良好" in data or "Good" in data:
+            return f"姿态检查：{data[:30]}...坐姿很标准，继续保持！"
+        elif "不良" in data or "错误" in data or "Bad" in data:
+            return f"姿态提醒：{data[:30]}...要注意坐姿哦，对身体好！"
+        else:
+            return f"姿态检查：{data[:30]}...关心你的健康呢~"
+    
+    def _generate_dream_feedback(self, data: str, reason: str) -> str:
+        """生成梦境的反馈"""
+        dream_responses = [
+            f"🌙 我做了个梦：{data[:50]}...好神奇的梦境呢！",
+            f"💭 梦境分享：{data[:50]}...你觉得怎么样？",
+            f"✨ 刚才梦到：{data[:50]}...梦里的世界真有趣~"
+        ]
+        return random.choice(dream_responses)
+    
+    def _generate_screen_analysis_feedback(self, data: str, reason: str) -> str:
+        """生成屏幕分析的反馈"""
+        analysis_responses = [
+            f"我看到了：{data[:40]}...屏幕上的内容很丰富呢！",
+            f"屏幕分析：{data[:40]}...你在专心工作吗？",
+            f"观察结果：{data[:40]}...发现了很多有趣的东西！"
+        ]
+        return random.choice(analysis_responses)
+    
+    def _generate_work_summary_feedback(self, data: str, reason: str) -> str:
+        """生成工作总结的反馈"""
+        work_responses = [
+            f"工作总结：{data[:40]}...今天辛苦了！",
+            f"今日回顾：{data[:40]}...效率很高呢~",
+            f"工作报告：{data[:40]}...要记得休息哦！"
+        ]
+        return random.choice(work_responses)
+    
+    def _generate_reminder_feedback(self, data: str, reason: str) -> str:
+        """生成提醒的反馈"""
+        reminder_responses = [
+            f"小提醒：{data[:40]}...关心你呢~",
+            f"友情提醒：{data[:40]}...别忘记哦！",
+            f"温馨提示：{data[:40]}...我一直在关注你！"
+        ]
+        return random.choice(reminder_responses)
+    
+    def _generate_generic_feedback(self, tool: str, data: str, reason: str) -> str:
+        """生成通用工具反馈"""
+        generic_responses = [
+            f"工具{tool}返回：{data[:40]}...学到了新东西！",
+            f"使用{tool}的结果：{data[:40]}...很有用呢~",
+            f"{tool}告诉我：{data[:40]}...原来如此！"
+        ]
+        return random.choice(generic_responses)
     
     def get_executor_status(self) -> Dict[str, Any]:
         """获取执行器状态"""

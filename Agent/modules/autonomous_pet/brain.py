@@ -127,9 +127,14 @@ class PetBrain:
         }
     
     def _generate_possible_behaviors(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """生成可能的行为列表"""
+        """生成可能的行为列表 - 强制包含工具调用"""
         possible_behaviors = []
         
+        # 🔧 强制添加工具调用意图 - 确保每次都有工具选项
+        tool_behaviors = self._generate_tool_intentions_forced(context)
+        possible_behaviors.extend(tool_behaviors)
+        
+        # 添加传统社交行为（作为备选）
         for behavior_type in self.behavior_types:
             probability = self.emotions.get_behavior_probability(behavior_type)
             
@@ -139,18 +144,142 @@ class PetBrain:
                     behavior_type, probability, context
                 )
                 
-                if adjusted_probability > 0.1:  # 至少10%概率才考虑
+                # 降低社交行为的概率，让工具调用更容易被选中
+                adjusted_probability *= 0.5  # 将社交行为概率减半
+                
+                if adjusted_probability > 0.05:  # 降低阈值
                     possible_behaviors.append({
                         'type': behavior_type,
                         'probability': adjusted_probability,
                         'context_score': self._calculate_context_score(behavior_type, context)
                     })
         
-        # 添加工具调用意图
-        tool_behaviors = self._generate_tool_intentions(context)
-        possible_behaviors.extend(tool_behaviors)
+        return possible_behaviors
+    
+    def _generate_tool_intentions_forced(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """强制生成工具调用意图 - 确保每次都有工具可选"""
+        tool_behaviors = []
         
-        return sorted(possible_behaviors, key=lambda x: x['probability'], reverse=True)
+        # 基础工具池 - 无条件添加
+        base_tools = [
+            {
+                'type': 'tool_call',
+                'tool': 'get_time',
+                'probability': 0.8,  # 提高概率
+                'context_score': 0.9,  # 提高适配度
+                'reason': '想知道现在的时间'
+            },
+            {
+                'type': 'tool_call',
+                'tool': 'pet_status',
+                'probability': 0.7,
+                'context_score': 0.8,
+                'reason': '想了解自己的当前状态'
+            },
+            {
+                'type': 'tool_call',
+                'tool': 'check_system',
+                'probability': 0.6,
+                'context_score': 0.7,
+                'reason': '好奇系统运行情况'
+            }
+        ]
+        
+        # 无条件添加基础工具
+        tool_behaviors.extend(base_tools)
+        
+        # 时间相关工具调用
+        if context['is_morning']:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'get_usage_stats',
+                'probability': 0.7,
+                'context_score': 0.8,
+                'reason': '早上想了解昨天的使用情况'
+            })
+        
+        # 截图功能 - 降低条件
+        if self.emotions.emotions['curiosity'] > 0.4 or self.emotions.emotions['boredom'] > 0.4:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'take_screenshot',
+                'probability': 0.6,
+                'context_score': 0.7,
+                'reason': '好奇想看看屏幕上有什么'
+            })
+        
+        # 姿态检查 - 降低条件
+        if context['time_since_last_interaction'] and context['time_since_last_interaction'] > 30:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'check_posture',
+                'probability': 0.8,
+                'context_score': 0.9,
+                'reason': '关心你的坐姿健康'
+            })
+        
+        # 使用统计查询
+        if context['is_evening'] or context['is_afternoon']:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'get_usage_stats',
+                'probability': 0.7,
+                'context_score': 0.8,
+                'reason': '想了解今天的使用情况'
+            })
+        
+        # 学习新知识 - 降低条件
+        if self.emotions.emotions['curiosity'] > 0.4 or self.emotions.emotions['boredom'] > 0.4:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'learn_something',
+                'probability': 0.6,
+                'context_score': 0.7,
+                'reason': '想学点新东西'
+            })
+        
+        # 梦境生成
+        if context['is_night'] or self.emotions.emotions['energy'] < 0.4:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'generate_dream',
+                'probability': 0.7,
+                'context_score': 0.8,
+                'reason': '想要做个美梦'
+            })
+        
+        # 屏幕分析 - 降低条件
+        if self.emotions.emotions['curiosity'] > 0.5:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'analyze_screen',
+                'probability': 0.6,
+                'context_score': 0.7,
+                'reason': '好奇屏幕上显示的内容'
+            })
+        
+        # 工作总结
+        if (context['is_afternoon'] or context['is_evening']):
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'work_summary',
+                'probability': 0.6,
+                'context_score': 0.7,
+                'reason': '想了解你今天的工作情况'
+            })
+        
+        # 用户提醒 - 降低条件
+        if context['time_since_last_interaction'] and context['time_since_last_interaction'] > 60:
+            tool_behaviors.append({
+                'type': 'tool_call',
+                'tool': 'remind_user',
+                'probability': 0.8,
+                'context_score': 0.9,
+                'reason': '你有一段时间没理我了，提醒一下'
+            })
+        
+        print(f"🔧 强制工具意图: 生成了 {len(tool_behaviors)} 个工具调用选项")
+        return tool_behaviors
     
     def _adjust_probability_by_context(self, behavior_type: str, base_probability: float, 
                                      context: Dict[str, Any]) -> float:
@@ -211,40 +340,6 @@ class PetBrain:
                 score *= emotion_compatibility[behavior_type][dominant_emotion]
         
         return score
-    
-    def _generate_tool_intentions(self, context: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """生成工具调用意图"""
-        tool_behaviors = []
-        
-        # 根据情感和时间生成工具使用意图
-        if context['is_morning'] and self.emotions.emotions['curiosity'] > 0.6:
-            tool_behaviors.append({
-                'type': 'tool_call',
-                'tool': 'check_weather',
-                'probability': 0.3,
-                'context_score': 0.8,
-                'reason': '早上好奇天气情况'
-            })
-        
-        if self.emotions.emotions['curiosity'] > 0.7:
-            tool_behaviors.append({
-                'type': 'tool_call',
-                'tool': 'learn_something',
-                'probability': 0.2,
-                'context_score': 0.7,
-                'reason': '好奇心强，想学新知识'
-            })
-        
-        if context['time_since_last_interaction'] and context['time_since_last_interaction'] > 120:
-            tool_behaviors.append({
-                'type': 'tool_call',
-                'tool': 'remind_user',
-                'probability': 0.25,
-                'context_score': 0.6,
-                'reason': '用户长时间未互动，关心一下'
-            })
-        
-        return tool_behaviors
     
     def _choose_behavior(self, possible_behaviors: List[Dict[str, Any]]) -> Dict[str, Any]:
         """选择要执行的行为"""

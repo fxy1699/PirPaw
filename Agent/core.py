@@ -184,7 +184,7 @@ class AgentCore:
                 # 获取模块特定配置
                 module_config = module_configs.get(module_key, {})
                 
-                # 如果是Chat 或者 watchTV 模块，设置AgentCore引用以支持跨模块调用
+                # 如果模块有set_agent_core方法，设置AgentCore引用以支持跨模块调用
                 if hasattr(module, 'set_agent_core'):
                     module.set_agent_core(self)
                 
