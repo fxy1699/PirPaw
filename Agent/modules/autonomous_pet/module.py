@@ -627,15 +627,28 @@ class AutonomousPetModule(BaseModule):
             return False
     
     def _trigger_bubble(self, bubble_dict):
-        """触发气泡显示"""
+        """触发气泡显示，支持自动播放功能"""
         try:
             if self.bubble_manager:
-                self.bubble_manager.register_bubble.emit(bubble_dict)
-                print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
+                # 检查是否有自动播放信息
+                if bubble_dict.get('auto_play', False):
+                    # 使用新的自定义气泡方法
+                    self.bubble_manager.trigger_custom_bubble(bubble_dict)
+                    print(f"🎈 自动播放气泡已启动: {bubble_dict.get('message', '')} (共{len(bubble_dict.get('segments', [])) + 1}段)")
+                else:
+                    # 使用原有的方法
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+                    print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
             else:
                 print("⚠️ 气泡管理器未连接")
         except Exception as e:
             print(f"❌ 触发气泡失败: {e}")
+            # 降级处理：直接发送信号
+            try:
+                if self.bubble_manager:
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+            except:
+                pass
     
     def get_emotion_report(self) -> str:
         """获取情感报告"""

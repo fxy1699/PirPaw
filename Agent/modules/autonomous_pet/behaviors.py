@@ -171,7 +171,7 @@ class BehaviorExecutor:
         return f"{prefix}{content}"
     
     def _create_bubble_dict(self, action_type: str, content: str, display_message: str) -> Dict[str, Any]:
-        """创建气泡数据字典"""
+        """创建气泡数据字典，支持长文本自动分割和播放"""
         # 根据行为类型选择图标和音效
         icon_mapping = {
             'seek_attention': 'system',
@@ -190,16 +190,92 @@ class BehaviorExecutor:
             'play': 'system'
         }
         
-        # 构造气泡字典
-        bubble_dict = {
-            'message': content,  # 原始内容，不带emoji前缀
-            'bubble_type': f'autonomous_{action_type}',  # 自主行为气泡类型
-            'icon': icon_mapping.get(action_type),
-            'start_audio': audio_mapping.get(action_type),
-            'end_audio': None
-        }
+        # 处理长文本：如果超过15个字符，需要分割
+        max_length = 15
+        
+        if len(content) <= max_length:
+            # 短文本，直接显示
+            bubble_dict = {
+                'message': content,
+                'bubble_type': f'autonomous_{action_type}',
+                'icon': icon_mapping.get(action_type),
+                'start_audio': audio_mapping.get(action_type),
+                'end_audio': None
+            }
+        else:
+            # 长文本，需要分割成多个气泡自动播放
+            text_segments = self._split_text_for_bubbles(content, max_length)
+            
+            # 创建第一个气泡（立即显示）
+            bubble_dict = {
+                'message': text_segments[0],
+                'bubble_type': f'autonomous_{action_type}',
+                'icon': icon_mapping.get(action_type),
+                'start_audio': audio_mapping.get(action_type),
+                'end_audio': None,
+                # 添加自动播放信息
+                'auto_play': True,
+                'segments': text_segments[1:],  # 剩余的文本段
+                'segment_delay': 2000,  # 每段间隔2秒
+                'current_segment': 0
+            }
         
         return bubble_dict
+    
+    def _split_text_for_bubbles(self, text: str, max_length: int) -> list:
+        """将长文本智能分割为适合气泡显示的短段"""
+        if len(text) <= max_length:
+            return [text]
+        
+        segments = []
+        current_segment = ""
+        
+        # 优先按标点符号分割
+        punctuation = ['。', '！', '？', '，', '；', '：', '、']
+        
+        i = 0
+        while i < len(text):
+            char = text[i]
+            current_segment += char
+            
+            # 如果遇到标点符号且长度合适，结束当前段
+            if char in punctuation and len(current_segment) <= max_length:
+                segments.append(current_segment.strip())
+                current_segment = ""
+            # 如果长度达到上限，强制分割
+            elif len(current_segment) >= max_length:
+                # 尝试在合适的位置分割（避免分割单词）
+                if current_segment[-1] in punctuation:
+                    segments.append(current_segment.strip())
+                    current_segment = ""
+                else:
+                    # 回退到最近的标点符号或空格
+                    split_pos = max_length
+                    for j in range(len(current_segment) - 1, max(0, len(current_segment) - 5), -1):
+                        if current_segment[j] in punctuation + [' ', '　']:
+                            split_pos = j + 1
+                            break
+                    
+                    segments.append(current_segment[:split_pos].strip())
+                    current_segment = current_segment[split_pos:]
+            
+            i += 1
+        
+        # 添加剩余部分
+        if current_segment.strip():
+            segments.append(current_segment.strip())
+        
+        # 确保每段都不超过最大长度
+        final_segments = []
+        for segment in segments:
+            if len(segment) <= max_length:
+                final_segments.append(segment)
+            else:
+                # 强制按长度分割
+                for k in range(0, len(segment), max_length):
+                    final_segments.append(segment[k:k + max_length])
+        
+        return final_segments
     
     def _simulate_tool_call(self, tool: str) -> Dict[str, Any]:
         """模拟工具调用（简单版本）"""

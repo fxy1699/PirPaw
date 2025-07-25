@@ -2,7 +2,7 @@ import os
 import re
 import json
 import random
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QTimer
 
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
@@ -65,6 +65,11 @@ class BubbleManager(QObject):
                  parent=None):
         super().__init__(parent=parent)
         self.bubble_conf = self.load_bubble_config()
+        
+        # 自动播放支持
+        self.auto_play_timer = QTimer()
+        self.auto_play_timer.timeout.connect(self._play_next_segment)
+        self.current_auto_play = None  # 当前自动播放的气泡信息
 
 
     def load_bubble_config(self) -> dict:
@@ -132,6 +137,89 @@ class BubbleManager(QObject):
         if candidates:
             bb_type = random.choice(candidates)
             self.trigger_bubble(bb_type)
+    
+    def trigger_custom_bubble(self, bubble_dict):
+        """触发自定义气泡，支持自动播放功能"""
+        if not bubble_dict:
+            return
+        
+        # 检查是否需要自动播放
+        if bubble_dict.get('auto_play', False) and bubble_dict.get('segments'):
+            # 设置自动播放信息
+            self.current_auto_play = {
+                'bubble_dict': bubble_dict.copy(),
+                'segments': bubble_dict['segments'].copy(),
+                'current_segment': 0,
+                'delay': bubble_dict.get('segment_delay', 2000)
+            }
+            
+            # 移除自动播放相关信息，显示第一段
+            display_dict = bubble_dict.copy()
+            display_dict.pop('auto_play', None)
+            display_dict.pop('segments', None)
+            display_dict.pop('segment_delay', None)
+            display_dict.pop('current_segment', None)
+            
+            # 显示第一段
+            self._emit_bubble(display_dict)
+            
+            # 启动自动播放定时器
+            if self.current_auto_play['segments']:
+                self.auto_play_timer.start(self.current_auto_play['delay'])
+        else:
+            # 普通气泡，直接显示
+            self._emit_bubble(bubble_dict)
+    
+    def _play_next_segment(self):
+        """播放下一段文本"""
+        if not self.current_auto_play or not self.current_auto_play['segments']:
+            self.auto_play_timer.stop()
+            self.current_auto_play = None
+            return
+        
+        # 获取下一段文本
+        next_segment = self.current_auto_play['segments'].pop(0)
+        
+        # 创建气泡字典
+        bubble_dict = self.current_auto_play['bubble_dict'].copy()
+        bubble_dict['message'] = next_segment
+        
+        # 移除自动播放相关信息
+        bubble_dict.pop('auto_play', None)
+        bubble_dict.pop('segments', None)
+        bubble_dict.pop('segment_delay', None)
+        bubble_dict.pop('current_segment', None)
+        
+        # 显示当前段
+        self._emit_bubble(bubble_dict)
+        
+        # 检查是否还有更多段落
+        if self.current_auto_play['segments']:
+            # 继续下一段
+            self.auto_play_timer.start(self.current_auto_play['delay'])
+        else:
+            # 播放完毕
+            self.auto_play_timer.stop()
+            self.current_auto_play = None
+    
+    def _emit_bubble(self, bubble_dict):
+        """发送气泡显示信号"""
+        # 翻译消息
+        message = bubble_dict.get('message', '')
+        message = self.tr(message)
+        
+        # 替换用户标签
+        message = self._replace_usertag(message)
+        bubble_dict['message'] = message
+        
+        if settings.bubble_on:
+            self.register_bubble.emit(bubble_dict)
+    
+    def stop_auto_play(self):
+        """停止当前的自动播放"""
+        if self.auto_play_timer.isActive():
+            self.auto_play_timer.stop()
+        self.current_auto_play = None
 
     def prepare_feed_required(self):
         # Check if hp and fv are already full
