@@ -7,122 +7,168 @@
 from Agent.base_module import BaseModule
 import random
 import os
-from typing import Optional
+from typing import Optional, List, Dict
 
 from qwen_agent.agents import Assistant
 from qwen_agent.gui import WebUI
 import random
 
 class DreamGenerationModule(BaseModule):
-    """梦境生成模块 - 根据关键词生成梦境文本"""
+    """梦境生成模块 - 基于自主宠物情绪状态生成梦境文本"""
 
     name = "梦境生成"
-    description = "根据输入的关键词生成富有想象力的梦境文本"
-    version = "1.0.0"
+    description = "基于宠物当前情绪状态生成富有想象力的梦境文本"
+    version = "2.0.0"
     author = "开发者A"
 
     def __init__(self):
         super().__init__()
-        self.emotion_json = [
-            {
-                "name": "Happy 开心的",
-                "prob": 6,
-                "fine-grained": [
-                    {"name": "Content 舒适满足", "prob": 8},
-                    {"name": "Joyful 喜悦的", "prob": 7},
-                    {"name": "Elated 兴高采烈的", "prob": 6},
-                    {"name": "Inspired 受到启发的", "prob": 5},
-                    {"name": "Delighted 欣喜的", "prob": 4},
-                    {"name": "Cheerful 开朗的", "prob": 3},
-                    {"name": "Ecstatic 狂喜的", "prob": 2}
-                ]
+        
+        # 情绪关键词映射表 - 将5维情绪映射到具体的梦境关键词
+        self.emotion_keywords_mapping = {
+            'happiness': {
+                'high': ['Joyful 喜悦的', 'Elated 兴高采烈的', 'Blissful 幸福的', 'Radiant 光芒四射的', 'Euphoric 欣快的'],
+                'medium': ['Content 满足的', 'Cheerful 开朗的', 'Pleased 愉快的', 'Delighted 欣喜的', 'Optimistic 乐观的'],
+                'low': ['Melancholic 忧郁的', 'Subdued 低沉的', 'Wistful 若有所思的', 'Pensive 沉思的', 'Reflective 反思的']
             },
-            {
-                "name": "Sad 伤心的",
-                "prob": 3,
-                "fine-grained": [
-                    {"name": "Depressed 沮丧的", "prob": 8},
-                    {"name": "Grieving 悲痛的", "prob": 7},
-                    {"name": "Lonely 孤独的", "prob": 6},
-                    {"name": "Heartbroken 心碎的", "prob": 5},
-                    {"name": "Mournful 哀伤的", "prob": 4},
-                    {"name": "Despondent 绝望的", "prob": 3}
-                ]
+            'energy': {
+                'high': ['Vibrant 充满活力的', 'Dynamic 动态的', 'Energetic 精力充沛的', 'Vigorous 精力旺盛的', 'Spirited 精神饱满的'],
+                'medium': ['Steady 稳定的', 'Balanced 平衡的', 'Calm 平静的', 'Gentle 温和的', 'Peaceful 和平的'],
+                'low': ['Tired 疲倦的', 'Weary 疲惫的', 'Sluggish 迟缓的', 'Lethargic 无精打采的', 'Exhausted 精疲力竭的']
             },
-            {
-                "name": "Angry 生气的",
-                "prob": 2,
-                "fine-grained": [
-                    {"name": "Annoyed 恼怒的", "prob": 8},
-                    {"name": "Frustrated 沮丧的（因受阻）", "prob": 7},
-                    {"name": "Furious 愤怒的", "prob": 6},
-                    {"name": "Enraged 暴怒的", "prob": 5},
-                    {"name": "Livid 气极的", "prob": 4},
-                    {"name": "Hostile 敌对的", "prob": 3}
-                ]
+            'boredom': {
+                'high': ['Restless 不安的', 'Monotonous 单调的', 'Stagnant 停滞的', 'Tedious 乏味的', 'Uninspired 缺乏灵感的'],
+                'medium': ['Routine 例行的', 'Ordinary 普通的', 'Neutral 中性的', 'Familiar 熟悉的', 'Predictable 可预测的'],
+                'low': ['Engaged 投入的', 'Fascinated 着迷的', 'Absorbed 专注的', 'Captivated 被吸引的', 'Stimulated 受刺激的']
             },
-            {
-                "name": "Fearful 害怕的",
-                "prob": 3,
-                "fine-grained": [
-                    {"name": "Anxious 焦虑的", "prob": 8},
-                    {"name": "Terrified 极度恐惧的", "prob": 7},
-                    {"name": "Nervous 紧张的", "prob": 6},
-                    {"name": "Panicked 惊慌失措的", "prob": 5},
-                    {"name": "Apprehensive 忧虑的", "prob": 4},
-                    {"name": "Uneasy 不安的", "prob": 3}
-                ]
+            'curiosity': {
+                'high': ['Inquisitive 好奇的', 'Exploratory 探索的', 'Wondering 疑惑的', 'Investigative 调查的', 'Mysterious 神秘的'],
+                'medium': ['Interested 感兴趣的', 'Attentive 专注的', 'Observant 观察的', 'Thoughtful 深思的', 'Contemplative 沉思的'],
+                'low': ['Indifferent 冷漠的', 'Disinterested 不感兴趣的', 'Apathetic 无动于衷的', 'Passive 被动的', 'Detached 超然的']
             },
-            {
-                "name": "Surprised 惊讶的",
-                "prob": 1,
-                "fine-grained": [
-                    {"name": "Astonished 震惊的", "prob": 8},
-                    {"name": "Shocked 震撼的", "prob": 7},
-                    {"name": "Amazed 惊异的", "prob": 6},
-                    {"name": "Stunned 目瞪口呆的", "prob": 5},
-                    {"name": "Dazed 恍惚的", "prob": 4},
-                    {"name": "Flabbergasted 大吃一惊的", "prob": 3}
-                ]
-            },
-            {
-                "name": "Disgusted 讨厌的",
-                "prob": 1,
-                "fine-grained": [
-                    {"name": "Repulsed 厌恶的", "prob": 8},
-                    {"name": "Loathing 憎恶的", "prob": 7},
-                    {"name": "Revulsion 强烈反感", "prob": 6},
-                    {"name": "Nauseated 作呕的", "prob": 5},
-                    {"name": "Detestable 可憎的", "prob": 4},
-                    {"name": "Contemptuous 蔑视的", "prob": 3}
-                ]
-            },
-            {
-                "name": "Love 喜爱的",
-                "prob": 3,
-                "fine-grained": [
-                    {"name": "Affectionate 有感情的", "prob": 8},
-                    {"name": "Passionate 热情的", "prob": 7},
-                    {"name": "Devoted 忠诚的", "prob": 6},
-                    {"name": "Adoring 崇拜的", "prob": 5},
-                    {"name": "Cherishing 珍爱的", "prob": 4},
-                    {"name": "Romantic 浪漫的", "prob": 3}
-                ]
-            },
-            {
-                "name": "Hopeful 有希望的",
-                "prob": 2,
-                "fine-grained": [
-                    {"name": "Eager 热切的", "prob": 8},
-                    {"name": "Anticipating 期待的", "prob": 7},
-                    {"name": "Yearning 渴望的", "prob": 6},
-                    {"name": "Aspiring 有抱负的", "prob": 5},
-                    {"name": "Optimistic 乐观的", "prob": 4},
-                    {"name": "Expectant 期盼的", "prob": 3}
-                ]
+            'loneliness': {
+                'high': ['Lonely 孤独的', 'Isolated 孤立的', 'Abandoned 被遗弃的', 'Solitary 独居的', 'Desolate 荒凉的'],
+                'medium': ['Introspective 内省的', 'Contemplative 沉思的', 'Reflective 反思的', 'Meditative 冥想的', 'Quiet 安静的'],
+                'low': ['Connected 连接的', 'Accompanied 有陪伴的', 'Social 社交的', 'Warm 温暖的', 'Embraced 被拥抱的']
             }
-        ]
+        }
+        
+        # 尝试获取自主宠物模块的引用
+        self.autonomous_pet_module = None
+        
+        # 初始化AI代理（如果可用）
         self.dream_bot = self._init_agent_service()
+
+    def setup(self, config=None):
+        """初始化模块"""
+        super().setup(config)
+        
+        # 如果已经有agent_core引用，尝试连接自主宠物模块
+        if hasattr(self, 'agent_core') and self.agent_core:
+            self._connect_to_autonomous_pet()
+
+    def set_agent_core(self, agent_core):
+        """设置Agent核心引用，用于访问其他模块"""
+        self.agent_core = agent_core
+        
+        # 尝试连接自主宠物模块
+        self._connect_to_autonomous_pet()
+    
+    def _connect_to_autonomous_pet(self):
+        """连接到自主宠物模块"""
+        if hasattr(self, 'agent_core') and self.agent_core:
+            try:
+                for module in self.agent_core.modules:
+                    if hasattr(module, 'name') and '自主宠物' in module.name:
+                        self.autonomous_pet_module = module
+                        print(f"✅ 梦境生成已连接到自主宠物模块")
+                        return True
+                print(f"⚠️ 未找到自主宠物模块，将使用默认情绪生成")
+            except Exception as e:
+                print(f"⚠️ 连接自主宠物模块失败: {e}")
+        return False
+
+    def _get_pet_emotions(self) -> Dict[str, float]:
+        """获取宠物当前情绪状态"""
+        if self.autonomous_pet_module and hasattr(self.autonomous_pet_module, 'emotions'):
+            try:
+                # 获取当前情绪状态
+                emotions = self.autonomous_pet_module.emotions.get_current_emotions()
+                print(f"🎭 获取到宠物情绪状态: {emotions}")
+                return emotions
+            except Exception as e:
+                print(f"⚠️ 获取宠物情绪失败: {e}")
+        
+        # 如果无法获取，返回默认情绪
+        print(f"⚠️ 使用默认情绪状态")
+        return {
+            'happiness': 0.5,
+            'energy': 0.5,
+            'boredom': 0.5,
+            'curiosity': 0.5,
+            'loneliness': 0.5
+        }
+
+    def _emotions_to_keywords(self, emotions: Dict[str, float]) -> List[str]:
+        """将情绪数值转换为最相近的关键词"""
+        keywords = []
+        
+        # 对每个情绪维度，根据数值选择对应的关键词
+        for emotion, value in emotions.items():
+            if emotion in self.emotion_keywords_mapping:
+                # 根据数值确定等级
+                if value >= 0.7:
+                    level = 'high'
+                elif value >= 0.4:
+                    level = 'medium'
+                else:
+                    level = 'low'
+                
+                # 从对应等级随机选择一个关键词
+                available_keywords = self.emotion_keywords_mapping[emotion][level]
+                selected_keyword = random.choice(available_keywords)
+                keywords.append(selected_keyword)
+        
+        # 选择最突出的3个情绪维度
+        # 计算每个情绪的"强度"（偏离中性值0.5的程度）
+        emotion_intensities = {}
+        for emotion, value in emotions.items():
+            # 计算偏离中性值的程度
+            intensity = abs(value - 0.5)
+            emotion_intensities[emotion] = intensity
+        
+        # 按强度排序，选择前3个
+        top_emotions = sorted(emotion_intensities.items(), key=lambda x: x[1], reverse=True)[:3]
+        
+        # 只返回最突出的3个情绪对应的关键词
+        final_keywords = []
+        for emotion, _ in top_emotions:
+            if emotion in self.emotion_keywords_mapping:
+                value = emotions[emotion]
+                if value >= 0.7:
+                    level = 'high'
+                elif value >= 0.4:
+                    level = 'medium'
+                else:
+                    level = 'low'
+                
+                available_keywords = self.emotion_keywords_mapping[emotion][level]
+                selected_keyword = random.choice(available_keywords)
+                final_keywords.append(selected_keyword)
+        
+        return final_keywords
+
+    def _get_emotion_keywords(self):
+        """获取基于宠物真实情绪的关键词（替代原来的随机方法）"""
+        # 获取宠物当前情绪
+        emotions = self._get_pet_emotions()
+        
+        # 转换为关键词
+        keywords = self._emotions_to_keywords(emotions)
+        
+        print(f"🎭 情绪映射: {emotions} -> {keywords}")
+        
+        return keywords
 
     def _init_agent_service(self):
         try:
@@ -140,15 +186,6 @@ class DreamGenerationModule(BaseModule):
             print(f"⚠️ 梦境生成模块初始化失败: {e}")
             print("💡 梦境生成功能将使用简化模式")
             return None
-
-    def _get_emotion_keywords(self):
-        emotion_weights = [emotion['prob'] for emotion in self.emotion_json]
-        selected_emotion_index = random.choices(range(len(self.emotion_json)), weights=emotion_weights, k=1)[0]
-        fine_grained_emotions = self.emotion_json[selected_emotion_index]['fine-grained']
-        fine_grained_weights = [emotion['prob'] for emotion in fine_grained_emotions]
-        selected_fine_grained_indices = random.choices(range(len(fine_grained_emotions)), weights=fine_grained_weights, k=3)
-        selected_fine_grained_emotions = [fine_grained_emotions[i]['name'] for i in selected_fine_grained_indices]
-        return selected_fine_grained_emotions
 
     def handle_message(self, message: str, context=None):
         """
