@@ -56,6 +56,7 @@ except ImportError as e:
         print("⚠️ 使用虚拟diary_manager")
 
 import DyberPet.settings as settings
+from DyberPet.StoryManager import story_manager
 basedir = settings.BASEDIR
 
 def _convert_to_shanghai_time_helper(timestamp_str: str) -> datetime:
@@ -334,6 +335,131 @@ class DetailViewDialog(QDialog):
         except Exception as e:
             QMessageBox.warning(self, "打开失败", f"无法打开图像文件:\n{str(e)}")
 
+class PetStoryDialog(QDialog):
+    """宠物背景故事查看对话框"""
+    
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """设置UI"""
+        self.setWindowTitle("📚 宠物背景故事")
+        self.setModal(False)
+        self.resize(900, 700)
+        
+        # 设置窗口标志
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)
+        
+        layout = QVBoxLayout(self)
+        
+        # 顶部控制栏
+        control_layout = QHBoxLayout()
+        
+        # 宠物选择下拉框
+        control_layout.addWidget(QLabel("选择宠物:"))
+        self.pet_combo = QComboBox()
+        self.pet_combo.currentTextChanged.connect(self.on_pet_changed)
+        control_layout.addWidget(self.pet_combo)
+        
+        control_layout.addStretch()
+        
+        # 刷新按钮
+        refresh_btn = QPushButton("🔄 刷新")
+        refresh_btn.clicked.connect(self.load_pet_stories)
+        control_layout.addWidget(refresh_btn)
+        
+        layout.addLayout(control_layout)
+        
+        # 故事内容显示区域
+        self.story_text = QTextEdit()
+        self.story_text.setReadOnly(True)
+        self.story_text.setStyleSheet("""
+            QTextEdit {
+                background-color: #fafafa;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                padding: 15px;
+                font-family: 'Microsoft YaHei';
+                font-size: 12px;
+                line-height: 1.6;
+            }
+        """)
+        layout.addWidget(self.story_text)
+        
+        # 底部按钮
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 20px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+        
+        # 加载数据
+        self.load_pet_stories()
+    
+    def load_pet_stories(self):
+        """加载所有宠物故事"""
+        try:
+            # 获取所有可用的故事
+            all_stories = story_manager.get_all_available_stories()
+            
+            # 更新下拉框
+            current_selection = self.pet_combo.currentText()
+            self.pet_combo.clear()
+            
+            # 获取当前宠物
+            current_pet = getattr(settings, 'petname', None)
+            
+            # 添加选项
+            pet_names = list(all_stories.keys())
+            self.pet_combo.addItems(pet_names)
+            
+            # 设置当前宠物为默认选择
+            if current_pet and current_pet in pet_names:
+                self.pet_combo.setCurrentText(current_pet)
+            elif current_selection and current_selection in pet_names:
+                self.pet_combo.setCurrentText(current_selection)
+            elif pet_names:
+                self.pet_combo.setCurrentIndex(0)
+            
+            # 显示故事
+            self.on_pet_changed()
+            
+        except Exception as e:
+            print(f"❌ 加载宠物故事失败: {e}")
+            self.story_text.setPlainText("加载故事时出现错误，请稍后重试。")
+    
+    def on_pet_changed(self):
+        """当选择的宠物改变时"""
+        selected_pet = self.pet_combo.currentText()
+        if selected_pet:
+            try:
+                story_data = story_manager.get_pet_story(selected_pet)
+                if story_data:
+                    formatted_story = story_manager.format_story_for_display(story_data)
+                    # 转换markdown格式为富文本显示
+                    self.story_text.setMarkdown(formatted_story)
+                else:
+                    self.story_text.setPlainText("未找到该宠物的故事信息。")
+            except Exception as e:
+                print(f"❌ 显示宠物故事失败: {e}")
+                self.story_text.setPlainText("显示故事时出现错误。")
+
 class DiaryEntryWidget(QFrame):
     """单个日记条目的UI组件 - 优化版本"""
     
@@ -349,7 +475,6 @@ class DiaryEntryWidget(QFrame):
         QFrame:hover {
             background-color: #f5f5f5;
             border-color: #d0d0d0;
-            cursor: pointer;
         }
     """
     
@@ -694,6 +819,12 @@ class DiaryWindow(QWidget):
         self.cleanup_btn.setMaximumWidth(35)
         self.cleanup_btn.clicked.connect(self.cleanup_old_entries)
         layout.addWidget(self.cleanup_btn)
+        
+        self.story_btn = QPushButton("📚")
+        self.story_btn.setToolTip("宠物背景故事")
+        self.story_btn.setMaximumWidth(35)
+        self.story_btn.clicked.connect(self.show_pet_story)
+        layout.addWidget(self.story_btn)
         
         return panel
     
@@ -1100,10 +1231,39 @@ class DiaryWindow(QWidget):
             except Exception as e:
                 QMessageBox.critical(self, "清理失败", f"清理过程中出现错误:\n{str(e)}")
     
+    def show_pet_story(self):
+        """显示宠物背景故事"""
+        try:
+            # 如果故事窗口已存在，则激活它
+            if hasattr(self, 'story_window') and self.story_window is not None:
+                try:
+                    self.story_window.show()
+                    self.story_window.raise_()
+                    self.story_window.activateWindow()
+                    return
+                except:
+                    self.story_window = None
+            
+            # 创建新的故事窗口
+            self.story_window = PetStoryDialog(self)
+            self.story_window.show()
+            
+        except Exception as e:
+            print(f"❌ 打开宠物故事失败: {e}")
+            QMessageBox.critical(self, "错误", f"无法打开宠物故事:\n{str(e)}")
+    
     def closeEvent(self, event):
         """关闭事件"""
         if hasattr(self, 'refresh_timer'):
             self.refresh_timer.stop()
+        
+        # 关闭故事窗口
+        if hasattr(self, 'story_window') and self.story_window is not None:
+            try:
+                self.story_window.close()
+            except:
+                pass
+        
         event.accept()
 
 if __name__ == "__main__":
