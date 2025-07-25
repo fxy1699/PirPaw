@@ -383,6 +383,16 @@ class ChatModule(BaseModule):
                 return f"🌙 梦境生成:\n{result}"
             except Exception as e:
                 print(f"❌ Function Call执行失败: {e}")
+
+        if any(word in message_lower for word in ['工作', '总结', '工作总结']):
+            try:
+                print(f"📊 Function Call: 工作总结")
+                result = self.module_registry.call_function_directly(
+                    "daywork_generate_daily_summary", {}
+                )
+                return f"📊 工作总结:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
         
         return None
     

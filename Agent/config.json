@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "dreamgeneration"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "dreamgeneration", "daywork"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -61,6 +61,10 @@
       "max_exec_steps": 10,
       "personality": "梦境生成助手",
       "save_conversation_history": false
+    },
+    "daywork": {
+      "enabled": true,
+      "max_images": 10
     }
   }
 } 
