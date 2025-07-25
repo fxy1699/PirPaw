@@ -7,7 +7,22 @@ __pycache__/
 DyberPet/__pycache__/
 DyberPet/DyberSettings/__pycache__/
 DyberPet/Dashboard/__pycache__/
-data/
+
+# 数据文件 - 忽略实际数据但保留目录结构
+data/*.json
+data/*.db
+data/version
+!data/.gitkeep
+
+# Agent数据文件
+Agent/data/*.json
+Agent/data/*.db
+Agent/data/diary/*.db
+Agent/data/diary/thumbnails/*
+!Agent/data/.gitkeep
+!Agent/data/diary/.gitkeep
+!Agent/data/diary/thumbnails/.gitkeep
+
 dist/
 build/
 run_DyberPet.exe

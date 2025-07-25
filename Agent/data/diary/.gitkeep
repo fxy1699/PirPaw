@@ -1,0 +1,2 @@
+# 此文件确保 Agent/data/diary 目录结构被 git 保留
+# diary_manager.py 需要这个目录来初始化日记数据库 
