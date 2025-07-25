@@ -426,6 +426,11 @@ class ChatModule(BaseModule):
 - 适当使用emoji增加亲和力
 - 记住用户偏好，提供个性化建议
 
+## 工具使用规则：
+- 当用户明确要求"画图"、"生成图片"、"创作图像"时，才使用图像生成工具
+- 对于梦境分享、故事叙述等文本内容，优先用文字回复和互动
+- 根据用户实际需求智能判断是否调用工具
+
 ## 当前时间：{current_time.strftime('%Y年%m月%d日 %H:%M')}
 
 请根据用户的消息内容，智能判断是否需要调用工具，并提供最有帮助的回复。"""
@@ -574,6 +579,10 @@ class ChatModule(BaseModule):
         # 添加函数调用结果
         if function_result:
             message += f"\n\n{function_result}"
+            
+            # 如果是梦境生成结果，添加特殊指令禁用图片生成
+            if "🌙 梦境生成:" in function_result:
+                message += "\n\n[系统指令：这是梦境分享，请只用文字回复和互动，不要生成图片]"
         
         return message
     

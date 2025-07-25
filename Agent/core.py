@@ -213,22 +213,23 @@ class AgentCore:
         if not message.strip():
             return ["请输入有效的消息"]
 
-        results = []
-        context = context or {}
-
-        # 依次询问每个启用的模块
+        # 只用 ChatModule 处理消息
+        chat_module = None
         for module in self.modules:
-            if not module.enabled or not module.initialized:
-                continue
+            if module.__class__.__name__ == "ChatModule" and module.enabled and module.initialized:
+                chat_module = module
+                break
 
+        results = []
+        if chat_module:
             try:
-                response = module.handle_message(message, context)
-                if response:  # 模块有响应
+                response = chat_module.handle_message(message, context)
+                if response:
                     results.append(response)
                     if self.config.get("global_settings", {}).get("debug_mode"):
-                        print(f"🔍 [{module.name}] 响应: {response}")
+                        print(f"🔍 [{chat_module.name}] 响应: {response}")
             except Exception as e:
-                error_msg = f"模块 {module.name} 处理消息时出错: {e}"
+                error_msg = f"模块 {chat_module.name} 处理消息时出错: {e}"
                 print(f"❌ {error_msg}")
                 if self.config.get("global_settings", {}).get("debug_mode"):
                     results.append(f"⚠️ {error_msg}")

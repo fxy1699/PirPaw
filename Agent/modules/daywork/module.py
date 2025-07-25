@@ -58,7 +58,6 @@ class DayWork(BaseModule):
             usage_file = os.path.join(
                 os.getcwd(), "data", "app_usage.json"
             )
-            print('self usage_file', usage_file)
             if os.path.exists(usage_file):
                 with open(usage_file, "r", encoding="utf-8") as f:
                     usage_data = json.load(f)
@@ -83,7 +82,6 @@ class DayWork(BaseModule):
                 summary = "未找到应用时长数据文件"
         except Exception as e:
             summary = f"读取应用时长数据失败: {e}"
-        print('self summary', summary)
         return summary
 
     def get_capabilities(self):
