@@ -39,7 +39,7 @@
     "tracker": {
       "data_file": "data/app_usage.json",
       "tracking_interval": 5,
-      "auto_start": false,
+      "auto_start": true,
       "show_detailed_windows": true
     },
     "petaction": {
