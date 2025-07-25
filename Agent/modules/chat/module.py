@@ -4,6 +4,7 @@ import time
 from datetime import datetime
 from .tools import DyberPetTools
 from .module_function_registry import ModuleFunctionRegistry
+import copy
 
 
 class ChatModule(BaseModule):
@@ -41,6 +42,11 @@ class ChatModule(BaseModule):
                 print("⚠️ 未配置Qwen API密钥，将启用本地模式（功能受限）")
                 self._setup_local_mode()
                 return
+            
+            # 确保API密钥设置到环境变量中（qwen-agent需要）
+            import os
+            os.environ['DASHSCOPE_API_KEY'] = api_key
+            print(f"🔑 已设置DASHSCOPE_API_KEY环境变量")
             
             # 导入Qwen-Agent
             from qwen_agent.agents import Assistant
@@ -590,22 +596,27 @@ class ChatModule(BaseModule):
         """使用Qwen-Agent处理消息"""
         # 添加上下文信息
         enhanced_message = self._enhance_message_with_context(message, context)
-        enhanced_message = self._enhance_message_with_function_result(enhanced_message, function_result)
+        conversation_history = copy.deepcopy(self.conversation_history)
 
         # 添加到对话历史
         self.conversation_history.append({
             'role': 'user',
             'content': enhanced_message
         })
+
+        enhanced_message = self._enhance_message_with_function_result(enhanced_message, function_result)
+        conversation_history.append({
+            'role': 'user',
+            'content': enhanced_message
+        })
         
         # 保持对话历史长度，确保格式正确
         max_history = self.config.get('max_conversation_history', 20)
-        if len(self.conversation_history) > max_history * 2:
+        if len(conversation_history) > max_history * 2:
             # 只保留最近的用户和助手消息对话，确保以用户消息开始
-            user_assistant_msgs = [msg for msg in self.conversation_history 
+            user_assistant_msgs = [msg for msg in conversation_history 
                                  if msg.get('role') in ['user', 'assistant']]
             recent_msgs = user_assistant_msgs[-max_history*2:]
-            
             # 确保消息列表以用户消息开始
             if recent_msgs and recent_msgs[0].get('role') != 'user':
                 # 如果第一条不是用户消息，找到第一条用户消息开始
@@ -615,11 +626,10 @@ class ChatModule(BaseModule):
                         user_start_idx = i
                         break
                 recent_msgs = recent_msgs[user_start_idx:]
-            
-            self.conversation_history = recent_msgs
+            conversation_history = recent_msgs
         
         # 清理对话历史格式
-        clean_history = self._clean_conversation_history()
+        clean_history = self._clean_conversation_history(conversation_history)
 
         for msg in clean_history:
             print('\nself msg', msg)
@@ -646,6 +656,10 @@ class ChatModule(BaseModule):
             # 后处理响应
             formatted_response = self._format_response(assistant_response)
             
+            # 记录到日记本 - 修复function_calls参数
+            function_calls = function_result if function_result else []
+            self._add_chat_to_diary(message, formatted_response, function_calls)
+            
             return f"🤖 {formatted_response}"
         else:
             return "🤖 抱歉，我现在无法回应。请稍后再试！"
@@ -662,7 +676,12 @@ class ChatModule(BaseModule):
         
         # 根据交互次数选择不同回复
         response_index = self.user_profile['interaction_count'] % len(responses)
-        return f"🤖 {responses[response_index]}"
+        response = responses[response_index]
+        
+        # 记录到日记本
+        self._add_chat_to_diary(message, response, [])
+        
+        return f"🤖 {response}"
     
     def _enhance_message_with_context(self, message, context):
         """为消息添加上下文信息"""
@@ -704,6 +723,29 @@ class ChatModule(BaseModule):
                 response = '。\n'.join(sentences)
         
         return response.strip()
+    
+    def _add_chat_to_diary(self, user_message: str, pet_response: str, function_calls: list):
+        """添加聊天记录到日记本"""
+        try:
+            import os
+            import sys
+            
+            # 添加数据路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            data_dir = os.path.join(current_dir, '..', '..', 'data', 'diary')
+            sys.path.append(data_dir)
+            
+            from diary_manager import diary_manager
+            
+            # 获取当前宠物名称
+            import DyberPet.settings as settings
+            pet_name = getattr(settings, 'petname', 'Unknown')
+            
+            # 记录聊天
+            diary_manager.add_chat_entry(user_message, pet_response, function_calls, pet_name)
+            print(f"✅ 聊天记录已添加到日记本")
+        except Exception as e:
+            print(f"⚠️ 添加聊天记录到日记本失败: {e}")
     
     def get_conversation_summary(self):
         """获取对话摘要"""
@@ -809,10 +851,10 @@ class ChatModule(BaseModule):
         except Exception as e:
             print(f"❌ 保存对话历史失败: {e}") 
 
-    def _clean_conversation_history(self):
+    def _clean_conversation_history(self, history):
         """清理对话历史，确保格式符合API要求"""
         # 只保留用户和助手消息
-        cleaned_history = [msg for msg in self.conversation_history 
+        cleaned_history = [msg for msg in history 
                           if msg.get('role') in ['user', 'assistant']]
         
         # 确保以用户消息开始
