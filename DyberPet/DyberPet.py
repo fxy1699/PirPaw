@@ -1035,17 +1035,33 @@ class PetWidget(QWidget):
             import pyautogui
             import PIL
             print("✅ 添加截屏菜单项（独立模式）")
-            screenshot_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/system/document.svg')), 
+            screenshot_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/system/saveIcon.svg')), 
                                            self.tr('截屏'), triggered=self._take_screenshot_standalone))
         except ImportError as e:
             print(f"❌ 截屏依赖未安装: {e}")
             print("💡 请运行: pip install pyautogui pillow")
         
+        # 添加日记本菜单项
+        diary_actions = []
+        try:
+            print("✅ 添加日记本菜单项")
+            diary_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/note_icon.json')), 
+                                      self.tr('日记本'), triggered=self._show_diary))
+        except Exception as e:
+            print(f"❌ 日记本菜单项添加失败: {e}")
+            # 如果图标加载失败，尝试使用其他图标
+            try:
+                diary_actions.append(Action(QIcon(os.path.join(basedir,'res/icons/task.svg')), 
+                                          self.tr('日记本'), triggered=self._show_diary))
+                print("✅ 日记本菜单项已添加（使用备用图标）")
+            except Exception as e2:
+                print(f"❌ 日记本菜单项完全添加失败: {e2}")
+        
         self.StatMenu.addActions([
             #Action(FIF.MENU, self.tr('More Options'), triggered=self._show_right_menu),
             Action(QIcon(os.path.join(basedir,'res/icons/dashboard.svg')), self.tr('Dashboard'), triggered=self._show_dashboard),
             Action(QIcon(os.path.join(basedir,'res/icons/SystemPanel.png')), self.tr('System'), triggered=self._show_controlPanel),
-        ] + chat_actions + screenshot_actions)
+        ] + chat_actions + screenshot_actions + diary_actions)
         self.StatMenu.addSeparator()
 
         self.StatMenu.addMenu(self.act_menu)
@@ -1547,6 +1563,14 @@ class PetWidget(QWidget):
             self.workers['Animation'].pause()
             self.workers['Interaction'].start_interact('use_item', item_name)
             self.bubble_manager.trigger_bubble('feed_done')
+            
+            # 记录到日记本
+            self._add_diary_interaction('feed', {
+                'action': '喂食',
+                'item_name': item_name,
+                'item_type': 'consumable',
+                'reward_factor': reward_factor
+            })
 
         # 附件物品
         elif item_name in self.pet_conf.act_name or item_name in self.pet_conf.acc_name:
@@ -1616,12 +1640,27 @@ class PetWidget(QWidget):
         # 摸摸动画
         if self.click_count >= 7:
             self.bubble_manager.trigger_bubble("pat_frequent")
+            # 记录到日记本
+            self._add_diary_interaction('pat', {
+                'action': '频繁抚摸',
+                'click_count': self.click_count
+            })
         elif self.workers['Interaction'].interact != 'patpat':
             if settings.focus_timer_on:
                 self.bubble_manager.trigger_bubble("pat_focus")
+                # 记录到日记本
+                self._add_diary_interaction('pat', {
+                    'action': '专注时抚摸',
+                    'click_count': self.click_count
+                })
             else:
                 self.workers['Animation'].pause()
                 self.workers['Interaction'].start_interact('patpat')
+                # 记录到日记本
+                self._add_diary_interaction('pat', {
+                    'action': '抚摸',
+                    'click_count': self.click_count
+                })
 
         # 概率触发浮动的心心
         prob_num_0 = random.uniform(0, 1)
@@ -1998,6 +2037,19 @@ class PetWidget(QWidget):
             
             print(f"✅ 截屏成功！保存到: {save_path}")
             
+            # 记录到日记本
+            try:
+                import sys
+                sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Agent'))
+                from data.diary.diary_manager import diary_manager
+                
+                # 获取当前宠物名称
+                pet_name = getattr(settings, 'petname', 'Unknown')
+                diary_manager.add_screenshot_entry(save_path, pet_name)
+                print("✅ 截屏记录已添加到日记本")
+            except Exception as e:
+                print(f"⚠️ 添加截屏记录到日记本失败: {e}")
+            
             # 使用DyberPet气泡系统显示成功提示
             try:
                 # 创建自定义气泡配置
@@ -2017,12 +2069,12 @@ class PetWidget(QWidget):
                 else:
                     # 降级到简单提示
                     print("⚠️ 气泡系统不可用，使用备用提示")
-                    from PyQt5.QtWidgets import QMessageBox
+                    from PySide6.QtWidgets import QMessageBox
                     QMessageBox.information(self, "截屏成功", f"截图已保存到screenshots文件夹\n文件名: {os.path.basename(save_path)}")
             except Exception as e:
                 print(f"⚠️ 气泡提示失败: {e}")
                 # 降级到简单提示
-                from PyQt5.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.information(self, "截屏成功", f"截图已保存到screenshots文件夹\n文件名: {os.path.basename(save_path)}")
                 
         except Exception as e:
@@ -2045,12 +2097,12 @@ class PetWidget(QWidget):
                     print("✅ 已通过气泡系统显示截屏失败提示")
                 else:
                     # 降级到简单提示
-                    from PyQt5.QtWidgets import QMessageBox
+                    from PySide6.QtWidgets import QMessageBox
                     QMessageBox.critical(self, "截屏失败", f"截屏功能出现错误：{str(e)}")
             except Exception as bubble_e:
                 print(f"⚠️ 气泡提示失败: {bubble_e}")
                 # 降级到简单提示
-                from PyQt5.QtWidgets import QMessageBox
+                from PySide6.QtWidgets import QMessageBox
                 QMessageBox.critical(self, "截屏失败", f"截屏功能出现错误：{str(e)}")
     
     def _copy_to_clipboard_standalone(self, pil_image):
@@ -2084,12 +2136,12 @@ class PetWidget(QWidget):
                     from AppKit import NSPasteboard, NSPasteboardTypePNG, NSImage
                     from Foundation import NSData
                     import io
-
+    
                     output = io.BytesIO()
                     pil_image.save(output, format='PNG')
                     data = output.getvalue()
                     output.close()
-
+    
                     nsdata = NSData.dataWithBytes_length_(data, len(data))
                     image = NSImage.alloc().initWithData_(nsdata)
                     pb = NSPasteboard.generalPasteboard()
@@ -2104,6 +2156,50 @@ class PetWidget(QWidget):
                 
         except Exception as e:
             print(f"⚠️ 复制图片到剪切板失败: {e}")
+    
+    def _add_diary_interaction(self, interaction_type: str, details: dict, duration: int = None):
+        """添加交互记录到日记本"""
+        try:
+            import sys
+            sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Agent'))
+            from data.diary.diary_manager import diary_manager
+            
+            # 获取当前宠物名称
+            pet_name = getattr(settings, 'petname', 'Unknown')
+            diary_manager.add_interaction_entry(interaction_type, details, pet_name, duration)
+            print(f"✅ 交互记录已添加到日记本: {interaction_type}")
+        except Exception as e:
+            print(f"⚠️ 添加交互记录到日记本失败: {e}")
+    
+    def _show_diary(self):
+        """显示日记本窗口"""
+        try:
+            from DyberPet.DiaryUI import DiaryWindow
+            print("📖 正在打开日记本窗口...")
+            
+            # 如果日记本窗口已存在，则激活它
+            if hasattr(self, 'diary_window') and self.diary_window is not None:
+                print("📖 日记本窗口已存在，激活窗口")
+                self.diary_window.show()
+                self.diary_window.raise_()
+                self.diary_window.activateWindow()
+                return
+            
+            # 创建新的日记本窗口
+            print("📖 创建新的日记本窗口...")
+            self.diary_window = DiaryWindow()  # 不设置parent，让窗口独立显示
+            self.diary_window.setWindowFlags(self.diary_window.windowFlags() | Qt.WindowStaysOnTopHint)
+            self.diary_window.show()
+            self.diary_window.raise_()
+            self.diary_window.activateWindow()
+            print("✅ 日记本窗口已打开并激活")
+            
+        except Exception as e:
+            print(f"❌ 打开日记本失败: {e}")
+            import traceback
+            traceback.print_exc()
+            from PySide6.QtWidgets import QMessageBox
+            QMessageBox.critical(self, "错误", f"无法打开日记本:\n{str(e)}")
     
     def _reset_chat_window_state(self):
         """重置聊天窗口状态"""

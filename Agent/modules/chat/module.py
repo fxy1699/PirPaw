@@ -42,6 +42,11 @@ class ChatModule(BaseModule):
                 self._setup_local_mode()
                 return
             
+            # 确保API密钥设置到环境变量中（qwen-agent需要）
+            import os
+            os.environ['DASHSCOPE_API_KEY'] = api_key
+            print(f"🔑 已设置DASHSCOPE_API_KEY环境变量")
+            
             # 导入Qwen-Agent
             from qwen_agent.agents import Assistant
             
@@ -646,6 +651,10 @@ class ChatModule(BaseModule):
             # 后处理响应
             formatted_response = self._format_response(assistant_response)
             
+            # 记录到日记本 - 修复function_calls参数
+            function_calls = function_result if function_result else []
+            self._add_chat_to_diary(message, formatted_response, function_calls)
+            
             return f"🤖 {formatted_response}"
         else:
             return "🤖 抱歉，我现在无法回应。请稍后再试！"
@@ -662,7 +671,12 @@ class ChatModule(BaseModule):
         
         # 根据交互次数选择不同回复
         response_index = self.user_profile['interaction_count'] % len(responses)
-        return f"🤖 {responses[response_index]}"
+        response = responses[response_index]
+        
+        # 记录到日记本
+        self._add_chat_to_diary(message, response, [])
+        
+        return f"🤖 {response}"
     
     def _enhance_message_with_context(self, message, context):
         """为消息添加上下文信息"""
@@ -704,6 +718,29 @@ class ChatModule(BaseModule):
                 response = '。\n'.join(sentences)
         
         return response.strip()
+    
+    def _add_chat_to_diary(self, user_message: str, pet_response: str, function_calls: list):
+        """添加聊天记录到日记本"""
+        try:
+            import os
+            import sys
+            
+            # 添加数据路径
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            data_dir = os.path.join(current_dir, '..', '..', 'data', 'diary')
+            sys.path.append(data_dir)
+            
+            from diary_manager import diary_manager
+            
+            # 获取当前宠物名称
+            import DyberPet.settings as settings
+            pet_name = getattr(settings, 'petname', 'Unknown')
+            
+            # 记录聊天
+            diary_manager.add_chat_entry(user_message, pet_response, function_calls, pet_name)
+            print(f"✅ 聊天记录已添加到日记本")
+        except Exception as e:
+            print(f"⚠️ 添加聊天记录到日记本失败: {e}")
     
     def get_conversation_summary(self):
         """获取对话摘要"""
