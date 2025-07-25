@@ -195,36 +195,125 @@ if __name__ == '__main__':
     app = DyberPetApp(sys.argv)
     app.setAttribute(Qt.AA_DontCreateNativeWidgetSiblings)
 
-    # ============ Agent系统集成 ============
-    try:
-        # 添加Agent路径
-        import os
-        agent_path = os.path.join(os.path.dirname(__file__), 'Agent')
-        if agent_path not in sys.path:
-            sys.path.insert(0, agent_path)
+    # ============ Agent系统后台线程集成 ============
+    from PySide6.QtCore import QThread, QObject, Signal
+    
+    class AgentInitThread(QThread):
+        """Agent系统初始化线程 - 只处理非UI逻辑"""
         
-        # 启动Agent集成
-        from Agent.dyberpet_agent_integration import integrate_agent_with_dyberpet
-        integration_success = integrate_agent_with_dyberpet(app)
+        # 信号定义
+        init_started = Signal()
+        init_completed = Signal(bool, object)  # 成功/失败，Agent核心对象
+        init_error = Signal(str)               # 错误信息
         
-        if integration_success:
-            print("🎉 Agent系统已成功集成到DyberPet!")
-            print("💬 现在可以通过聊天窗口控制宠物了:")
-            print("   • 右键宠物 → 选择'智能聊天'")
-            print("   • 输入 '让小猫睡觉' 来控制动作")
-            print("   • 输入 '现在的状态' 查看宠物信息")
-            print("   • 输入 '走路' 或 '跳舞' 等动作指令")
-            
-            # 添加聊天窗口到应用
-            app.chat_integration_success = True
+        def __init__(self):
+            super().__init__()
+        
+        def run(self):
+            """在后台线程中初始化Agent系统核心（不涉及UI）"""
+            try:
+                self.init_started.emit()
+                print("🤖 后台线程开始初始化Agent核心系统...")
+                
+                # 添加Agent路径
+                import os
+                import sys
+                agent_path = os.path.join(os.path.dirname(__file__), 'Agent')
+                if agent_path not in sys.path:
+                    sys.path.insert(0, agent_path)
+                
+                # 只初始化Agent核心，不进行UI集成
+                from Agent.core import AgentCore
+                agent_core = AgentCore()
+                
+                print(f"🎉 Agent核心系统初始化成功，加载了 {len(agent_core.modules)} 个模块")
+                self.init_completed.emit(True, agent_core)
+                    
+            except Exception as e:
+                error_msg = f"Agent核心初始化出错: {e}"
+                print(f"❌ {error_msg}")
+                self.init_error.emit(error_msg)
+                self.init_completed.emit(False, None)
+    
+    # 设置初始状态
+    app.chat_integration_success = False
+    app.agent_initializing = True
+    
+    # 创建并启动Agent初始化线程
+    agent_thread = AgentInitThread()
+    
+    # 连接信号处理
+    def on_agent_init_started():
+        print("🚀 DyberPet已启动，Agent核心系统正在后台线程中初始化...")
+    
+    def on_agent_init_completed(success, agent_core):
+        """在主线程中处理Agent初始化完成 - 进行UI集成"""
+        app.agent_initializing = False
+        
+        if success and agent_core:
+            try:
+                print("🔗 在主线程中进行UI集成...")
+                
+                # 在主线程中进行UI相关的集成操作
+                from Agent.dyberpet_agent_integration import get_integration_manager
+                manager = get_integration_manager()
+                
+                # 设置Agent核心
+                manager.agent_core = agent_core
+                
+                # 连接PetAction模块到DyberPet（在主线程中）
+                if hasattr(app, 'p') and app.p:
+                    for module in agent_core.modules:
+                        if hasattr(module, 'action_executor'):
+                            success = module.connect_to_dyberpet(app, app.p)
+                            if success:
+                                manager.pet_action_module = module
+                                print(f"✅ PetAction模块已连接到DyberPet")
+                                break
+                
+                app.chat_integration_success = True
+                
+                # 刷新宠物右键菜单以添加智能聊天选项
+                try:
+                    print("🔄 刷新DyberPet菜单以添加聊天功能...")
+                    if hasattr(app.p, '_set_Statusmenu'):
+                        app.p._set_Statusmenu()
+                        print("✅ DyberPet菜单已刷新，智能聊天选项已添加")
+                    else:
+                        print("⚠️ 无法找到_set_Statusmenu方法")
+                except Exception as e:
+                    print(f"⚠️ 刷新菜单失败: {e}")
+                
+                print("🎉 Agent系统UI集成完成!")
+                print("💬 现在可以通过聊天窗口控制宠物了:")
+                print("   • 右键宠物 → 选择'智能聊天'")
+                print("   • 输入 '让小猫睡觉' 来控制动作")
+                print("   • 输入 '现在的状态' 查看宠物信息")
+                print("   • 输入 '走路' 或 '跳舞' 等动作指令")
+                
+            except Exception as e:
+                print(f"❌ UI集成失败: {e}")
+                app.chat_integration_success = False
         else:
-            print("⚠️ Agent系统集成失败，但DyberPet正常运行")
             app.chat_integration_success = False
-            
-    except Exception as e:
-        print(f"⚠️ Agent系统集成时出错: {e}")
+            print("⚠️ Agent核心初始化失败，但DyberPet正常运行")
+    
+    def on_agent_init_error(error_msg):
+        print(f"❌ {error_msg}")
         print("💡 DyberPet将正常运行，但无Agent功能")
+        app.agent_initializing = False
         app.chat_integration_success = False
+    
+    # 连接信号
+    agent_thread.init_started.connect(on_agent_init_started)
+    agent_thread.init_completed.connect(on_agent_init_completed)
+    agent_thread.init_error.connect(on_agent_init_error)
+    
+    # 启动Agent初始化线程
+    agent_thread.start()
+    
+    # 保存线程引用防止被回收
+    app.agent_thread = agent_thread
     # =========================================
 
     sys.exit(app.exec())

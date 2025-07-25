@@ -11,6 +11,71 @@ from PySide6.QtGui import *
 from qfluentwidgets import *
 
 
+class AgentCommunicationThread(QThread):
+    """Agent通信线程"""
+    
+    # 信号定义
+    message_processing_started = Signal(str)   # 开始处理消息
+    message_processing_completed = Signal(list)  # 处理完成，返回结果列表
+    message_processing_failed = Signal(str)   # 处理失败，返回错误信息
+    
+    def __init__(self, agent_executor):
+        super().__init__()
+        self.agent_executor = agent_executor
+        self.message_queue = []
+        self.processing = False
+        
+        # 用于线程间通信的条件变量
+        self.condition = QWaitCondition()
+        self.mutex = QMutex()
+    
+    def process_message(self, message):
+        """添加消息到处理队列"""
+        with QMutexLocker(self.mutex):
+            self.message_queue.append(message)
+            self.condition.wakeOne()
+    
+    def run(self):
+        """后台线程主循环"""
+        while True:
+            with QMutexLocker(self.mutex):
+                # 等待有消息需要处理
+                while not self.message_queue and not self.isInterruptionRequested():
+                    self.condition.wait(self.mutex)
+                
+                if self.isInterruptionRequested():
+                    break
+                
+                if self.message_queue:
+                    message = self.message_queue.pop(0)
+                    self.processing = True
+            
+            try:
+                # 发送开始处理信号
+                self.message_processing_started.emit(message)
+                
+                # 在后台线程中调用Agent处理
+                if self.agent_executor:
+                    results = self.agent_executor.process_message(message)
+                    self.message_processing_completed.emit(results if results else [])
+                else:
+                    self.message_processing_failed.emit("Agent系统未连接")
+                    
+            except Exception as e:
+                error_msg = f"处理消息时出错: {e}"
+                print(f"❌ {error_msg}")
+                self.message_processing_failed.emit(error_msg)
+            finally:
+                self.processing = False
+    
+    def stop(self):
+        """停止线程"""
+        self.requestInterruption()
+        with QMutexLocker(self.mutex):
+            self.condition.wakeOne()
+        self.wait()
+
+
 class ChatWindow(QWidget):
     """聊天窗口"""
     
@@ -21,6 +86,7 @@ class ChatWindow(QWidget):
         super().__init__(parent)
         self.agent_executor = None  # Agent执行器
         self.chat_history = []  # 聊天历史
+        self.communication_thread = None  # Agent通信线程
         
         self.setup_ui()
         self.setup_style()
@@ -88,6 +154,11 @@ class ChatWindow(QWidget):
         
         layout.addLayout(shortcuts_layout)
         
+        # 初始化欢迎信息和状态监控
+        self.init_welcome_messages()
+        
+    def init_welcome_messages(self):
+        """初始化欢迎信息和状态监控"""
         # 初始化欢迎信息
         self.add_system_message("🎉 欢迎使用DyberPet智能聊天！")
         self.add_system_message("💡 你可以用自然语言控制宠物，比如：")
@@ -96,6 +167,47 @@ class ChatWindow(QWidget):
         self.add_system_message("   • 现在的状态")
         self.add_system_message("   • 切换到其他宠物")
         
+        # 检查Agent初始化状态并设置状态监控
+        self.agent_status_shown = False
+        self.check_agent_status()
+        
+        # 设置状态监控定时器
+        self.status_check_timer = QTimer()
+        self.status_check_timer.timeout.connect(self.check_agent_status)
+        self.status_check_timer.start(2000)  # 每2秒检查一次
+    
+    def check_agent_status(self):
+        """检查Agent系统状态"""
+        app = QApplication.instance()
+        
+        if hasattr(app, 'agent_initializing') and app.agent_initializing:
+            if not self.agent_status_shown:
+                self.add_system_message("🤖 Agent核心正在后台线程中初始化，UI集成将在主线程中完成...")
+                self.agent_status_shown = True
+        elif hasattr(app, 'chat_integration_success'):
+            if app.chat_integration_success and self.agent_status_shown:
+                self.add_system_message("✅ Agent系统完全初始化完成，现在可以使用智能聊天功能了！")
+                self.status_check_timer.stop()  # 停止状态检查
+                self.setup_agent_communication()  # 设置Agent通信
+            elif not app.chat_integration_success and self.agent_status_shown:
+                self.add_system_message("⚠️ Agent系统初始化失败，部分功能可能不可用")
+                self.status_check_timer.stop()  # 停止状态检查
+    
+    def setup_agent_communication(self):
+        """设置Agent通信线程"""
+        if self.agent_executor and not self.communication_thread:
+            print("🔧 设置Agent通信线程...")
+            self.communication_thread = AgentCommunicationThread(self.agent_executor)
+            
+            # 连接信号
+            self.communication_thread.message_processing_started.connect(self.on_message_processing_started)
+            self.communication_thread.message_processing_completed.connect(self.on_message_processing_completed)
+            self.communication_thread.message_processing_failed.connect(self.on_message_processing_failed)
+            
+            # 启动通信线程
+            self.communication_thread.start()
+            print("✅ Agent通信线程已启动")
+    
     def setup_style(self):
         """设置样式"""
         self.setStyleSheet("""
@@ -159,28 +271,47 @@ class ChatWindow(QWidget):
         # 显示用户消息
         self.add_user_message(message)
         
-        # 处理消息
-        self.process_message(message)
-        
-    def process_message(self, message):
-        """处理消息"""
-        print(f"🔄 process_message被调用，消息: '{message}'")
-        print(f"🔍 agent_executor存在: {self.agent_executor is not None}")
+        # 使用通信线程处理消息
+        self.process_message_threaded(message)
+    
+    def process_message_threaded(self, message):
+        """通过通信线程处理消息"""
+        print(f"🔄 通过通信线程处理消息: '{message}'")
         
         if not self.agent_executor:
             print("❌ agent_executor为空")
             self.add_system_message("❌ Agent系统未连接")
             return
-            
+        
+        # 检查Agent是否正在初始化
+        app = QApplication.instance()
+        if hasattr(app, 'agent_initializing') and app.agent_initializing:
+            self.add_system_message("🤖 Agent系统正在初始化中，请稍后再试...")
+            return
+        
+        # 如果通信线程还没设置，尝试设置
+        if not self.communication_thread:
+            self.setup_agent_communication()
+        
+        if self.communication_thread:
+            # 通过通信线程处理消息
+            self.communication_thread.process_message(message)
+        else:
+            # 降级到同步处理
+            self.process_message_sync(message)
+    
+    def process_message_sync(self, message):
+        """同步处理消息（降级方案）"""
+        print(f"🔄 同步处理消息: '{message}'")
+        
         try:
-            print("🤖 开始处理消息...")
+            # 简单的UI反馈
             self.status_label.setText("🤖 处理中...")
-            QApplication.processEvents()  # 更新UI
+            self.input_field.setEnabled(False)
+            QApplication.processEvents()  # 立即更新UI
             
-            # 调用Agent核心处理（分发给所有模块）
-            print(f"📞 调用agent_executor.process_message('{message}')")
+            # 调用Agent处理
             results = self.agent_executor.process_message(message)
-            print(f"📋 Agent返回结果: {results}")
             
             if results and len(results) > 0:
                 # 显示所有模块的响应
@@ -190,16 +321,49 @@ class ChatWindow(QWidget):
             else:
                 self.add_bot_message("🤔 抱歉，我没能理解这个指令。请尝试其他表达方式。")
                 
-            self.status_label.setText("✅ 处理完成")
-            print("✅ 消息处理完成")
-            
         except Exception as e:
             print(f"❌ 处理异常: {e}")
-            import traceback
-            print(f"📋 异常详情: {traceback.format_exc()}")
             self.add_system_message(f"❌ 处理错误: {e}")
-            self.status_label.setText("❌ 处理失败")
-            
+        finally:
+            # 恢复UI状态
+            self.status_label.setText("准备就绪")
+            self.input_field.setEnabled(True)
+            self.input_field.setFocus()
+    
+    # 信号槽处理函数
+    def on_message_processing_started(self, message):
+        """消息开始处理"""
+        print(f"📥 开始处理消息: '{message}'")
+        self.status_label.setText("🤖 AI思考中...")
+        self.input_field.setEnabled(False)
+    
+    def on_message_processing_completed(self, results):
+        """消息处理完成"""
+        print(f"✅ 消息处理完成，结果: {results}")
+        
+        if results and len(results) > 0:
+            # 显示所有模块的响应
+            for result in results:
+                if result and result.strip():
+                    self.add_bot_message(result)
+        else:
+            self.add_bot_message("🤔 抱歉，我没能理解这个指令。请尝试其他表达方式。")
+        
+        # 恢复UI状态
+        self.status_label.setText("准备就绪")
+        self.input_field.setEnabled(True)
+        self.input_field.setFocus()
+    
+    def on_message_processing_failed(self, error_msg):
+        """消息处理失败"""
+        print(f"❌ 消息处理失败: {error_msg}")
+        self.add_system_message(f"❌ 处理错误: {error_msg}")
+        
+        # 恢复UI状态
+        self.status_label.setText("准备就绪")
+        self.input_field.setEnabled(True)
+        self.input_field.setFocus()
+        
     def add_user_message(self, message):
         """添加用户消息"""
         html = f"""
@@ -265,7 +429,19 @@ class ChatWindow(QWidget):
         
     def closeEvent(self, event):
         """关闭事件"""
-        print("🔄 聊天窗口关闭事件被触发，隐藏窗口")
+        print("🔄 聊天窗口关闭事件被触发")
+        
+        # 停止通信线程
+        if self.communication_thread:
+            print("🛑 停止Agent通信线程...")
+            self.communication_thread.stop()
+            self.communication_thread = None
+        
+        # 停止状态检查定时器
+        if hasattr(self, 'status_check_timer'):
+            self.status_check_timer.stop()
+        
+        print("🔄 隐藏窗口")
         self.hide()  # 隐藏而不是关闭
         event.ignore()
     

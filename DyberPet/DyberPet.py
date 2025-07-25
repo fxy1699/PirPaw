@@ -1055,6 +1055,22 @@ class PetWidget(QWidget):
         展示右键菜单
         :return:
         """
+        # 每次显示菜单前动态检查Agent状态并刷新菜单
+        try:
+            app_instance = QApplication.instance()
+            current_chat_success = getattr(app_instance, 'chat_integration_success', False)
+            agent_initializing = getattr(app_instance, 'agent_initializing', False)
+            
+            # 如果Agent状态发生变化，重新构建菜单
+            # 这里简单检查：如果Agent已完成初始化且之前菜单可能没有智能聊天选项
+            if current_chat_success and not agent_initializing:
+                print("🔄 Agent已就绪，确保菜单包含智能聊天选项...")
+                self._set_Statusmenu()  # 重新构建菜单以包含智能聊天
+            elif agent_initializing:
+                print("🔄 Agent正在初始化中...")
+        except Exception as e:
+            print(f"⚠️ 检查Agent状态时出错: {e}")
+        
         # 光标位置弹出菜单
         self.StatMenu.popup(QCursor.pos()-QPoint(0, self.StatMenu.height()-20))
 
@@ -1841,6 +1857,12 @@ class PetWidget(QWidget):
         try:
             # 从应用实例获取集成管理器
             app = QApplication.instance()
+            
+            # 检查Agent是否正在初始化
+            if hasattr(app, 'agent_initializing') and app.agent_initializing:
+                print("🔄 Agent系统正在初始化中，请稍等...")
+                return
+            
             if hasattr(app, 'chat_integration_success') and app.chat_integration_success:
                 from Agent.dyberpet_agent_integration import get_integration_manager
                 manager = get_integration_manager()
@@ -1851,7 +1873,7 @@ class PetWidget(QWidget):
                 else:
                     print("⚠️ Agent集成管理器中没有AgentCore")
             else:
-                print("⚠️ Agent系统未正确集成")
+                print("⚠️ Agent系统未正确集成或尚未完成初始化")
                 
         except Exception as e:
             print(f"❌ 查找Agent核心系统失败: {e}")
