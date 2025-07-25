@@ -8,7 +8,14 @@ import os
 import sys
 from datetime import datetime, timedelta
 from typing import List, Dict
-import pytz
+
+# 尝试导入pytz，如果失败则使用简化版本
+try:
+    import pytz
+    HAS_PYTZ = True
+except ImportError:
+    HAS_PYTZ = False
+    print("⚠️ pytz未安装，使用简化时间显示")
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                            QScrollArea, QFrame, QPushButton, QLineEdit,
@@ -20,11 +27,79 @@ from PySide6.QtCore import Qt, QThread, Signal, QDate, QTimer, QSize
 from PySide6.QtGui import QPixmap, QFont, QIcon, QPalette, QCursor
 
 # 添加Agent路径以导入DiaryManager
-sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Agent'))
-from data.diary.diary_manager import diary_manager
+agent_path = os.path.join(os.path.dirname(__file__), '..', 'Agent')
+sys.path.append(agent_path)
+
+# 尝试导入diary_manager
+try:
+    from data.diary.diary_manager import diary_manager
+    print("✅ diary_manager导入成功")
+except ImportError as e:
+    print(f"❌ diary_manager导入失败: {e}")
+    # 尝试另一种导入方式
+    try:
+        diary_data_path = os.path.join(agent_path, 'data', 'diary')
+        sys.path.append(diary_data_path)
+        from diary_manager import diary_manager
+        print("✅ diary_manager导入成功（备用方式）")
+    except ImportError as e2:
+        print(f"❌ diary_manager导入完全失败: {e2}")
+        # 创建一个空的替代对象
+        class DummyDiaryManager:
+            def get_entries(self, **kwargs):
+                return []
+            def get_screenshot_details(self, entry_id):
+                return None
+            def search_entries(self, keyword, entry_type=None):
+                return []
+        diary_manager = DummyDiaryManager()
+        print("⚠️ 使用虚拟diary_manager")
 
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
+
+def _convert_to_shanghai_time_helper(timestamp_str: str) -> datetime:
+    """转换时间戳为上海时间 - 全局辅助函数"""
+    try:
+        if HAS_PYTZ:
+            # 使用pytz进行精确时区转换
+            shanghai_tz = pytz.timezone('Asia/Shanghai')
+            
+            # 解析时间戳
+            if timestamp_str.endswith('Z'):
+                # UTC时间
+                utc_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
+                # 带时区的时间
+                utc_time = datetime.fromisoformat(timestamp_str)
+            else:
+                # 无时区信息，假设为UTC
+                utc_time = datetime.fromisoformat(timestamp_str)
+                utc_time = pytz.utc.localize(utc_time)
+            
+            # 如果没有时区信息，添加UTC时区
+            if utc_time.tzinfo is None:
+                utc_time = pytz.utc.localize(utc_time)
+            
+            # 转换为上海时间
+            return utc_time.astimezone(shanghai_tz)
+        else:
+            # 简化版本：假设时间戳是UTC，直接加8小时
+            if timestamp_str.endswith('Z'):
+                utc_time = datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            else:
+                utc_time = datetime.fromisoformat(timestamp_str.split('+')[0])
+            
+            # 加8小时转换为北京时间
+            return utc_time + timedelta(hours=8)
+        
+    except Exception as e:
+        print(f"⚠️ 时间转换失败: {e}, 使用原始时间")
+        # 如果转换失败，返回原始时间
+        try:
+            return datetime.fromisoformat(timestamp_str.replace('Z', ''))
+        except:
+            return datetime.now()
 
 class DetailViewDialog(QDialog):
     """详细内容查看对话框"""
@@ -32,7 +107,14 @@ class DetailViewDialog(QDialog):
     def __init__(self, entry: Dict, parent=None):
         super().__init__(parent)
         self.entry = entry
-        self.setup_ui()
+        try:
+            print(f"📖 创建详细对话框: {entry.get('title', 'Unknown')}")
+            self.setup_ui()
+            print("✅ 详细对话框创建成功")
+        except Exception as e:
+            print(f"❌ 详细对话框创建失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def setup_ui(self):
         """设置UI"""
@@ -49,12 +131,7 @@ class DetailViewDialog(QDialog):
         header_layout = QHBoxLayout()
         
         # 获取上海时间
-        shanghai_tz = pytz.timezone('Asia/Shanghai')
-        utc_time = datetime.fromisoformat(self.entry['timestamp'].replace('Z', '+00:00'))
-        if utc_time.tzinfo is None:
-            # 如果没有时区信息，假设是UTC时间
-            utc_time = pytz.utc.localize(utc_time)
-        shanghai_time = utc_time.astimezone(shanghai_tz)
+        shanghai_time = _convert_to_shanghai_time_helper(self.entry['timestamp'])
         
         title_label = QLabel(self.entry['title'])
         title_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
@@ -308,7 +385,7 @@ class DiaryEntryWidget(QFrame):
         header_layout.addStretch()
         
         # 时间 - 转换为上海时间
-        shanghai_time = self._convert_to_shanghai_time(self.entry['timestamp'])
+        shanghai_time = _convert_to_shanghai_time_helper(self.entry['timestamp'])
         time_str = shanghai_time.strftime('%m-%d %H:%M')
         time_label = QLabel(time_str)
         time_label.setStyleSheet("color: #999; font-size: 9px; margin: 0;")
@@ -327,35 +404,7 @@ class DiaryEntryWidget(QFrame):
     
     def _convert_to_shanghai_time(self, timestamp_str: str) -> datetime:
         """转换时间戳为上海时间"""
-        try:
-            shanghai_tz = pytz.timezone('Asia/Shanghai')
-            
-            # 解析时间戳
-            if timestamp_str.endswith('Z'):
-                # UTC时间
-                utc_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
-                # 带时区的时间
-                utc_time = datetime.fromisoformat(timestamp_str)
-            else:
-                # 无时区信息，假设为UTC
-                utc_time = datetime.fromisoformat(timestamp_str)
-                utc_time = pytz.utc.localize(utc_time)
-            
-            # 如果没有时区信息，添加UTC时区
-            if utc_time.tzinfo is None:
-                utc_time = pytz.utc.localize(utc_time)
-            
-            # 转换为上海时间
-            return utc_time.astimezone(shanghai_tz)
-            
-        except Exception as e:
-            print(f"⚠️ 时间转换失败: {e}, 使用原始时间")
-            # 如果转换失败，返回原始时间
-            try:
-                return datetime.fromisoformat(timestamp_str.replace('Z', ''))
-            except:
-                return datetime.now()
+        return _convert_to_shanghai_time_helper(timestamp_str)
     
     def _get_type_info(self, entry_type: str) -> Dict[str, str]:
         """获取类型信息 - 缓存优化"""
@@ -476,6 +525,15 @@ class DiaryWindow(QWidget):
         self._loading = False
         
         try:
+            print("📖 检查diary_manager...")
+            # 测试diary_manager是否可用
+            try:
+                test_entries = diary_manager.get_entries(limit=1)
+                print(f"📖 diary_manager测试成功，返回{len(test_entries)}条记录")
+            except Exception as dm_error:
+                print(f"❌ diary_manager测试失败: {dm_error}")
+                raise dm_error
+            
             print("📖 设置UI...")
             self.setup_ui()
             print("📖 UI设置完成，延迟加载数据...")
@@ -483,16 +541,25 @@ class DiaryWindow(QWidget):
             # 延迟加载数据，避免初始化时卡顿
             QTimer.singleShot(100, self.load_entries)
             
+            # 定时刷新
+            self.refresh_timer = QTimer()
+            self.refresh_timer.timeout.connect(self.load_entries)
+            self.refresh_timer.start(60000)  # 60秒刷新一次，减少频率
+            
+            print("📖 DiaryWindow 初始化完成")
+            
         except Exception as e:
             print(f"❌ DiaryWindow 初始化失败: {e}")
             import traceback
             traceback.print_exc()
-        
-        # 定时刷新
-        self.refresh_timer = QTimer()
-        self.refresh_timer.timeout.connect(self.load_entries)
-        self.refresh_timer.start(60000)  # 60秒刷新一次，减少频率
-        print("📖 DiaryWindow 初始化完成")
+            
+            # 显示错误信息给用户
+            try:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.critical(None, "日记本初始化失败", 
+                                   f"日记本无法启动，错误信息：\n{str(e)}\n\n请检查Agent/data/diary目录是否存在。")
+            except:
+                pass
     
     def setup_ui(self):
         """设置UI - 优化版本"""

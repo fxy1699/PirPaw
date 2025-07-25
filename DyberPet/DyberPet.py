@@ -2174,32 +2174,52 @@ class PetWidget(QWidget):
     def _show_diary(self):
         """显示日记本窗口"""
         try:
-            from DyberPet.DiaryUI import DiaryWindow
             print("📖 正在打开日记本窗口...")
             
             # 如果日记本窗口已存在，则激活它
             if hasattr(self, 'diary_window') and self.diary_window is not None:
                 print("📖 日记本窗口已存在，激活窗口")
-                self.diary_window.show()
-                self.diary_window.raise_()
-                self.diary_window.activateWindow()
-                return
+                try:
+                    self.diary_window.show()
+                    self.diary_window.raise_()
+                    self.diary_window.activateWindow()
+                    print("✅ 日记本窗口已激活")
+                    return
+                except Exception as e:
+                    print(f"⚠️ 激活现有窗口失败: {e}，将创建新窗口")
+                    self.diary_window = None
             
-                            # 创建新的日记本窗口
-                print("📖 创建新的日记本窗口...")
+            print("📖 导入DiaryWindow...")
+            from DyberPet.DiaryUI import DiaryWindow
+            print("✅ DiaryWindow导入成功")
+            
+            # 创建新的日记本窗口
+            print("📖 创建新的日记本窗口...")
+            try:
                 self.diary_window = DiaryWindow()  # 不设置parent，让窗口独立显示
-                # 移除置顶标志，让窗口可以被其他应用覆盖
+                print("✅ DiaryWindow实例创建成功")
+                
+                print("📖 显示窗口...")
                 self.diary_window.show()
                 self.diary_window.raise_()
                 self.diary_window.activateWindow()
                 print("✅ 日记本窗口已打开并激活")
+                
+            except Exception as create_error:
+                print(f"❌ 创建DiaryWindow失败: {create_error}")
+                import traceback
+                traceback.print_exc()
+                raise create_error
             
         except Exception as e:
             print(f"❌ 打开日记本失败: {e}")
             import traceback
             traceback.print_exc()
-            from PySide6.QtWidgets import QMessageBox
-            QMessageBox.critical(self, "错误", f"无法打开日记本:\n{str(e)}")
+            try:
+                from PySide6.QtWidgets import QMessageBox
+                QMessageBox.critical(self, "错误", f"无法打开日记本:\n{str(e)}")
+            except:
+                print("❌ 无法显示错误对话框")
     
     def _reset_chat_window_state(self):
         """重置聊天窗口状态"""
