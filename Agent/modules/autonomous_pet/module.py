@@ -611,12 +611,17 @@ class AutonomousPetModule(BaseModule):
     def connect_to_bubble_system(self, bubble_manager):
         """连接到DyberPet气泡系统"""
         try:
+            print(f"🔗 开始连接气泡系统...")
+            print(f"   bubble_manager: {bubble_manager}")
+            print(f"   behavior_executor: {self.behavior_executor}")
+            
             self.bubble_manager = bubble_manager
             
             # 设置气泡回调
             if self.behavior_executor:
                 self.behavior_executor.set_bubble_callback(self._trigger_bubble)
-                print("✅ 自主宠物已连接到气泡系统")
+                print(f"✅ 自主宠物已连接到气泡系统")
+                print(f"   回调函数已设置: {self.behavior_executor.bubble_callback is not None}")
                 return True
             else:
                 print("❌ 行为执行器未初始化，无法连接气泡系统")
@@ -624,6 +629,8 @@ class AutonomousPetModule(BaseModule):
                 
         except Exception as e:
             print(f"❌ 连接气泡系统失败: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _trigger_bubble(self, bubble_dict):

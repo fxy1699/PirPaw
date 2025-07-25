@@ -64,22 +64,34 @@ class BehaviorExecutor:
         # 输出到控制台（总是执行）
         print(f"🐱 宠物说: {display_message}")
         
+        # 调试信息：检查回调状态
+        print(f"🔍 调试信息:")
+        print(f"   bubble_callback: {self.bubble_callback is not None}")
+        print(f"   chat_interface: {self.chat_interface is not None}")
+        print(f"   ui_callback: {self.ui_callback is not None}")
+        
         success = True
         
         # 优先使用气泡系统显示
         if self.bubble_callback:
             try:
                 bubble_dict = self._create_bubble_dict(action_type, content, display_message)
+                print(f"🎈 创建气泡字典: {bubble_dict}")
                 self.bubble_callback(bubble_dict)
                 print(f"✅ 已通过气泡显示: {display_message}")
             except Exception as e:
                 print(f"⚠️ 气泡显示失败: {e}")
+                import traceback
+                traceback.print_exc()
                 success = False
+        else:
+            print("⚠️ 气泡回调未设置，尝试其他显示方式")
         
         # 备用：聊天界面显示
-        elif self.chat_interface:
+        if not self.bubble_callback and self.chat_interface:
             try:
                 self.chat_interface.add_bot_message(display_message)
+                print(f"✅ 已通过聊天界面显示: {display_message}")
             except Exception as e:
                 print(f"⚠️ 发送到聊天界面失败: {e}")
                 success = False
@@ -88,6 +100,7 @@ class BehaviorExecutor:
         if self.ui_callback:
             try:
                 self.ui_callback('pet_message', display_message)
+                print(f"✅ 已通过UI回调显示: {display_message}")
             except Exception as e:
                 print(f"⚠️ UI回调失败: {e}")
         

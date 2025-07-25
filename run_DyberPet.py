@@ -271,6 +271,31 @@ if __name__ == '__main__':
                                 print(f"✅ PetAction模块已连接到DyberPet")
                                 break
                 
+                # 连接自主宠物模块到气泡系统
+                print("🎈 开始连接自主宠物模块到气泡系统...")
+                autonomous_pet_module = None
+                for module in agent_core.modules:
+                    if hasattr(module, 'name') and '自主宠物' in module.name:
+                        autonomous_pet_module = module
+                        print(f"✅ 找到自主宠物模块: {module.name}")
+                        break
+                
+                if autonomous_pet_module and autonomous_pet_module.initialized:
+                    bubble_manager = getattr(app.p, 'bubble_manager', None)
+                    print(f"🔍 DyberPet气泡管理器: {bubble_manager is not None}")
+                    
+                    if bubble_manager:
+                        print("🔗 开始调用 autonomous_pet_module.connect_to_bubble_system()...")
+                        bubble_success = autonomous_pet_module.connect_to_bubble_system(bubble_manager)
+                        print(f"🎈 气泡系统连接结果: {bubble_success}")
+                    else:
+                        print("❌ 未找到DyberPet气泡管理器")
+                else:
+                    if not autonomous_pet_module:
+                        print("💡 未找到自主宠物模块，跳过气泡连接")
+                    elif not autonomous_pet_module.initialized:
+                        print("💡 自主宠物模块未初始化，跳过气泡连接")
+                
                 app.chat_integration_success = True
                 
                 # 刷新宠物右键菜单以添加智能聊天选项

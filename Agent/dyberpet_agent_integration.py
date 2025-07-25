@@ -102,6 +102,8 @@ class DyberPetAgentIntegration:
                 self.pet_widget
             )
             
+            print(f"🔍 pet_action连接结果: success={success}")
+            
             # 确保全局桥接器也连接到同一个实例
             from Agent.modules.pet_action.dyberpet_bridge import get_dyberpet_bridge
             global_bridge = get_dyberpet_bridge()
@@ -112,7 +114,9 @@ class DyberPetAgentIntegration:
                 print("🔗 pet_action模块已连接到DyberPet")
                 
                 # 连接自主宠物模块到气泡系统
-                self._connect_autonomous_pet_to_bubble()
+                print("🎈 开始连接自主宠物模块到气泡系统...")
+                bubble_success = self._connect_autonomous_pet_to_bubble()
+                print(f"🎈 气泡系统连接结果: {bubble_success}")
                 
                 # 测试连接
                 test_result = self.pet_action_module.handle_message("现在的状态")
@@ -191,32 +195,43 @@ class DyberPetAgentIntegration:
     def _connect_autonomous_pet_to_bubble(self):
         """连接自主宠物模块到气泡系统"""
         try:
+            print(f"🔍 气泡连接检查: agent_core={self.agent_core is not None}, pet_widget={self.pet_widget is not None}")
+            
             if not self.agent_core or not self.pet_widget:
                 print("⚠️ Agent核心或宠物窗口未准备好，跳过自主宠物气泡连接")
                 return False
+            
+            print(f"🔍 搜索自主宠物模块，总共有 {len(self.agent_core.modules)} 个模块:")
+            for i, module in enumerate(self.agent_core.modules):
+                module_name = getattr(module, 'name', '未知')
+                print(f"   {i+1}. {module_name} ({type(module).__name__})")
             
             # 查找自主宠物模块
             autonomous_pet_module = None
             for module in self.agent_core.modules:
                 if hasattr(module, 'name') and '自主宠物' in module.name:
                     autonomous_pet_module = module
+                    print(f"✅ 找到自主宠物模块: {module.name}")
                     break
             
             if not autonomous_pet_module:
                 print("💡 未找到自主宠物模块，跳过气泡连接")
                 return False
             
+            print(f"🔍 自主宠物模块初始化状态: {autonomous_pet_module.initialized}")
             if not autonomous_pet_module.initialized:
                 print("💡 自主宠物模块未初始化，跳过气泡连接")
                 return False
             
             # 获取DyberPet的气泡管理器
             bubble_manager = getattr(self.pet_widget, 'bubble_manager', None)
+            print(f"🔍 DyberPet气泡管理器: {bubble_manager is not None}")
             if not bubble_manager:
                 print("❌ 未找到DyberPet气泡管理器")
                 return False
             
             # 连接自主宠物到气泡系统
+            print("🔗 开始调用 autonomous_pet_module.connect_to_bubble_system()...")
             success = autonomous_pet_module.connect_to_bubble_system(bubble_manager)
             if success:
                 print("🎈 自主宠物已成功连接到气泡系统")
