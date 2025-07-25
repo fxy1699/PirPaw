@@ -31,6 +31,8 @@ def auto_discover_modules():
                     modules.append(cls())
                     print(f"✅ 发现模块: {cls.name} by {cls.author}")
                     break
+        except ModuleNotFoundError as e:
+            print(f"❌ 模块 {folder} 加载失败: {e}. 请检查模块路径和名称是否正确。")
         except Exception as e:
             print(f"❌ 模块 {folder} 加载失败: {e}")
     
