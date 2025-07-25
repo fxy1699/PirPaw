@@ -101,7 +101,8 @@ class AgentCore:
                     "max_image_size": [1920, 1080]
                 },
                 "camera": {
-                    "privacy_mode": True,
+                    "enabled": True,
+                    "privacy_mode": False,
                     "pose_detection": True,
                     "gesture_recognition": False,
                     "health_monitoring": True,

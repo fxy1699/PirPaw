@@ -25,7 +25,8 @@
       "max_image_size": [1920, 1080]
     },
     "camera": {
-      "privacy_mode": true,
+      "enabled": true,
+      "privacy_mode": false,
       "pose_detection": true,
       "gesture_recognition": false,
       "health_monitoring": true,

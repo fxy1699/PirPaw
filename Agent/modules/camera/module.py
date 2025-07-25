@@ -1,5 +1,8 @@
 from Agent.base_module import BaseModule
 import time
+import threading
+import os
+from datetime import datetime
 
 
 class CameraModule(BaseModule):
@@ -16,13 +19,15 @@ class CameraModule(BaseModule):
         self.pose_detector = None
         self.last_pose_check = 0
         self.sitting_start_time = None
+        self._auto_check_thread = None
+        self._auto_check_running = False
         
     def setup(self, config=None):
         """初始化摄像头功能"""
         super().setup(config)
         
         # 检查隐私模式
-        if self.config.get('privacy_mode', True):
+        if self.config.get('privacy_mode', False):
             print(f"🔒 {self.name} 处于隐私模式，需要用户授权才能启用")
             self.enabled = False
             return
@@ -42,7 +47,12 @@ class CameraModule(BaseModule):
         except Exception as e:
             print(f"❌ {self.name} 初始化失败: {e}")
             self.enabled = False
-    
+        # 自动启动定时姿态检测
+        if self.enabled:
+            try:
+                self.start_auto_pose_check()
+            except Exception as e:
+                print(f"❌ 自动姿态检测启动失败: {e}")
     def _init_pose_detection(self):
         """初始化姿态检测"""
         try:
@@ -80,19 +90,18 @@ class CameraModule(BaseModule):
             return f"📷 摄像头分析遇到问题: {str(e)}"
     
     def check_posture(self):
-        """检查用户姿态"""
+        """检查用户姿态（集成拍照）"""
         if not self._can_capture():
             return "📷 暂时无法检测姿态"
-        
         try:
-            # 模拟姿态检测
-            pose_data = self._detect_pose()
-            
+            photo_path = self.capture_photo()
+            if not photo_path:
+                return "📷 拍照失败，无法检测姿态"
+            pose_data = self._detect_pose(photo_path)
             if pose_data:
                 return self._analyze_posture(pose_data)
             else:
                 return "📷 未检测到用户，请确保坐在摄像头前"
-                
         except Exception as e:
             return f"📷 姿态检测失败: {e}"
     
@@ -145,23 +154,16 @@ class CameraModule(BaseModule):
         """检查是否可以捕获摄像头"""
         return self.enabled and not self.config.get('privacy_mode', True)
     
-    def _detect_pose(self):
-        """检测用户姿态"""
-        if not self.pose_detector:
-            return None
-        
-        try:
-            # 这里应该调用实际的姿态检测
-            # 返回模拟数据
-            return {
-                "head_tilt": 5,  # 头部倾斜角度
-                "shoulder_level": True,  # 肩膀是否水平
-                "back_straight": False,  # 背部是否挺直
-                "distance_to_screen": 60  # 到屏幕距离(cm)
-            }
-        except Exception as e:
-            print(f"姿态检测失败: {e}")
-            return None
+    def _detect_pose(self, photo_path=None):
+        """检测用户姿态（支持图片输入，暂为模拟）"""
+        # 这里可以用MediaPipe等库分析photo_path
+        # 暂时返回模拟数据
+        return {
+            "head_tilt": 5,  # 头部倾斜角度
+            "shoulder_level": True,  # 肩膀是否水平
+            "back_straight": False,  # 背部是否挺直
+            "distance_to_screen": 60  # 到屏幕距离(cm)
+        }
     
     def _analyze_posture(self, pose_data):
         """分析姿态数据"""
@@ -268,11 +270,21 @@ class CameraModule(BaseModule):
                     "properties": {},
                     "required": []
                 }
+            },
+            {
+                "name": "capture_photo",
+                "description": "拍照并返回图片路径",
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
     
     def call_function(self, function_name: str, arguments: dict):
         """调用Camera模块的具体功能"""
+        print('call_function', function_name, arguments)
         if not self.enabled:
             if self.config.get('privacy_mode', True):
                 raise RuntimeError("🔒 摄像头功能处于隐私保护模式，请在设置中启用")
@@ -287,6 +299,8 @@ class CameraModule(BaseModule):
             return self._function_check_fatigue(arguments)
         elif function_name == "get_camera_status":
             return self._function_get_camera_status(arguments)
+        elif function_name == "capture_photo":
+            return self._function_capture_photo(arguments)
         else:
             raise ValueError(f"未知功能: {function_name}")
     
@@ -305,3 +319,60 @@ class CameraModule(BaseModule):
     def _function_get_camera_status(self, arguments: dict):
         """Function Call: 获取摄像头状态"""
         return self.get_camera_status() 
+
+    def _function_capture_photo(self, arguments: dict):
+        """Function Call: 拍照并返回图片路径"""
+        return self.capture_photo()
+
+    def start_auto_pose_check(self, interval_minutes=3):
+        """启动定时自动姿态检测"""
+        if self._auto_check_thread and self._auto_check_thread.is_alive():
+            print("[CameraModule] 自动姿态检测线程已在运行")
+            return
+        self._auto_check_running = True
+        self._auto_check_thread = threading.Thread(target=self._auto_pose_check_loop, args=(interval_minutes,), daemon=True)
+        self._auto_check_thread.start()
+        print(f"[CameraModule] 已自动开启定时姿态检测（每{interval_minutes}分钟）")
+
+    def stop_auto_pose_check(self):
+        """停止自动姿态检测"""
+        self._auto_check_running = False
+        print("[CameraModule] 已停止自动姿态检测")
+
+    def _auto_pose_check_loop(self, interval_minutes):
+        while self._auto_check_running:
+            if self.enabled:
+                print("[CameraModule] 自动检测用户姿态...")
+                result = self.check_posture()
+                # 这里可以将result存储到日志、数据库，或推送到前端/通知
+                print(f"[CameraModule] 姿态检测报告：\n{result}")
+            time.sleep(interval_minutes * 60) 
+
+    def capture_photo(self, save_path=None):
+        """拍照并保存图片到指定路径，返回图片路径"""
+        if not self.enabled:
+            return None
+        try:
+            import cv2
+            cap = cv2.VideoCapture(0)
+            # 丢弃前几帧，等待摄像头自动曝光
+            for _ in range(5):
+                cap.read()
+                time.sleep(0.05)
+            ret, frame = cap.read()
+            cap.release()
+            if not ret:
+                print("❌ 拍照失败，无法获取摄像头画面")
+                return None
+            if save_path is None:
+                today = datetime.now().strftime("%Y%m%d")
+                save_dir = os.path.join(os.getcwd(), "camera_photos", today)
+                os.makedirs(save_dir, exist_ok=True)
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                save_path = os.path.join(save_dir, f"photo_{timestamp}.png")
+            cv2.imwrite(save_path, frame)
+            print(f"✅ 拍照成功，已保存到: {save_path}")
+            return save_path
+        except Exception as e:
+            print(f"❌ 拍照异常: {e}")
+            return None 

@@ -400,6 +400,24 @@ class ChatModule(BaseModule):
             except Exception as e:
                 print(f"❌ Function Call执行失败: {e}")
         
+        # camera
+        if any(word in message_lower for word in ['坐姿', '姿态', '健康', '疲劳', '摄像头', '拍照', '拍张照']):
+            try:
+                print(f"📷 Function Call: 检查坐姿")
+                # 如果是拍照，就触发拍照功能
+                if any(word in message_lower for word in ['拍照', '拍张照', '拍张照片']):
+                    result = self.module_registry.call_function_directly(
+                        "camera_capture_photo", {}
+                    )
+                    return f"📷 拍照成功:\n{result}"
+                else:
+                    result = self.module_registry.call_function_directly(
+                        "camera_check_posture", {}
+                    )
+                    return f"📷 坐姿检查:\n{result}"
+            except Exception as e:
+                print(f"❌ Function Call执行失败: {e}")
+        
         return None
     
     def _build_system_message(self):
