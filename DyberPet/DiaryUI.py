@@ -8,14 +8,16 @@ import os
 import sys
 from datetime import datetime, timedelta
 from typing import List, Dict
+import pytz
 
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
                            QScrollArea, QFrame, QPushButton, QLineEdit,
                            QComboBox, QDateEdit, QTextEdit, QGroupBox,
                            QGridLayout, QSplitter, QTabWidget, QProgressBar,
-                           QMessageBox, QFileDialog, QSpacerItem, QSizePolicy)
+                           QMessageBox, QFileDialog, QSpacerItem, QSizePolicy,
+                           QDialog)
 from PySide6.QtCore import Qt, QThread, Signal, QDate, QTimer, QSize
-from PySide6.QtGui import QPixmap, QFont, QIcon, QPalette
+from PySide6.QtGui import QPixmap, QFont, QIcon, QPalette, QCursor
 
 # 添加Agent路径以导入DiaryManager
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'Agent'))
@@ -23,6 +25,234 @@ from data.diary.diary_manager import diary_manager
 
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
+
+class DetailViewDialog(QDialog):
+    """详细内容查看对话框"""
+    
+    def __init__(self, entry: Dict, parent=None):
+        super().__init__(parent)
+        self.entry = entry
+        self.setup_ui()
+    
+    def setup_ui(self):
+        """设置UI"""
+        self.setWindowTitle(f"📖 详细内容 - {self.entry['title']}")
+        self.setModal(True)
+        self.resize(800, 600)
+        
+        layout = QVBoxLayout(self)
+        
+        # 标题和时间
+        header_layout = QHBoxLayout()
+        
+        # 获取上海时间
+        shanghai_tz = pytz.timezone('Asia/Shanghai')
+        utc_time = datetime.fromisoformat(self.entry['timestamp'].replace('Z', '+00:00'))
+        if utc_time.tzinfo is None:
+            # 如果没有时区信息，假设是UTC时间
+            utc_time = pytz.utc.localize(utc_time)
+        shanghai_time = utc_time.astimezone(shanghai_tz)
+        
+        title_label = QLabel(self.entry['title'])
+        title_label.setFont(QFont("Microsoft YaHei", 14, QFont.Bold))
+        header_layout.addWidget(title_label)
+        
+        header_layout.addStretch()
+        
+        time_label = QLabel(shanghai_time.strftime('%Y-%m-%d %H:%M:%S'))
+        time_label.setStyleSheet("color: #666; font-size: 12px;")
+        header_layout.addWidget(time_label)
+        
+        layout.addLayout(header_layout)
+        
+        # 分隔线
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setFrameShadow(QFrame.Sunken)
+        layout.addWidget(line)
+        
+        # 内容区域
+        content_scroll = QScrollArea()
+        content_scroll.setWidgetResizable(True)
+        content_widget = QWidget()
+        content_layout = QVBoxLayout(content_widget)
+        
+        # 根据类型显示不同内容
+        if self.entry['entry_type'] == 'screenshot':
+            self._add_screenshot_detail(content_layout)
+        elif self.entry['entry_type'] == 'chat':
+            self._add_chat_detail(content_layout)
+        elif self.entry['entry_type'] == 'interaction':
+            self._add_interaction_detail(content_layout)
+        else:
+            self._add_general_detail(content_layout)
+        
+        content_scroll.setWidget(content_widget)
+        layout.addWidget(content_scroll)
+        
+        # 关闭按钮
+        close_btn = QPushButton("关闭")
+        close_btn.clicked.connect(self.accept)
+        close_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #2196F3;
+                color: white;
+                border: none;
+                padding: 8px 20px;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+        """)
+        
+        button_layout = QHBoxLayout()
+        button_layout.addStretch()
+        button_layout.addWidget(close_btn)
+        layout.addLayout(button_layout)
+    
+    def _add_screenshot_detail(self, layout: QVBoxLayout):
+        """添加截屏详细内容"""
+        content = self.entry.get('content', {})
+        screenshot_info = diary_manager.get_screenshot_details(self.entry['id'])
+        
+        # 基本信息
+        info_group = QGroupBox("📋 基本信息")
+        info_layout = QVBoxLayout(info_group)
+        
+        if 'file_size' in content:
+            size_mb = content['file_size'] / (1024 * 1024)
+            info_layout.addWidget(QLabel(f"📁 文件大小: {size_mb:.2f} MB"))
+        
+        if 'resolution' in content:
+            info_layout.addWidget(QLabel(f"📐 分辨率: {content['resolution']}"))
+        
+        if screenshot_info:
+            info_layout.addWidget(QLabel(f"📂 文件路径: {screenshot_info.get('file_path', 'N/A')}"))
+        
+        layout.addWidget(info_group)
+        
+        # 截屏图像
+        if screenshot_info and screenshot_info.get('file_path'):
+            file_path = screenshot_info['file_path']
+            if os.path.exists(file_path):
+                image_group = QGroupBox("🖼️ 截屏图像")
+                image_layout = QVBoxLayout(image_group)
+                
+                image_label = QLabel()
+                pixmap = QPixmap(file_path)
+                if not pixmap.isNull():
+                    # 缩放到合适大小，保持比例
+                    scaled_pixmap = pixmap.scaled(700, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    image_label.setPixmap(scaled_pixmap)
+                    image_label.setAlignment(Qt.AlignCenter)
+                    image_label.setStyleSheet("border: 1px solid #ddd; background: white; padding: 10px;")
+                    
+                    # 添加点击提示
+                    hint_label = QLabel("💡 点击图像可以用系统默认程序打开完整图像")
+                    hint_label.setStyleSheet("color: #666; font-size: 10px; text-align: center;")
+                    hint_label.setAlignment(Qt.AlignCenter)
+                    
+                    # 让图像可以点击
+                    image_label.setCursor(QCursor(Qt.PointingHandCursor))
+                    image_label.mousePressEvent = lambda event: self._open_image_externally(file_path)
+                    
+                    image_layout.addWidget(image_label)
+                    image_layout.addWidget(hint_label)
+                
+                layout.addWidget(image_group)
+    
+    def _add_chat_detail(self, layout: QVBoxLayout):
+        """添加聊天详细内容"""
+        content = self.entry.get('content', {})
+        
+        if 'user_message' in content:
+            user_group = QGroupBox("👤 用户消息")
+            user_layout = QVBoxLayout(user_group)
+            user_text = QTextEdit()
+            user_text.setPlainText(content['user_message'])
+            user_text.setReadOnly(True)
+            user_text.setMaximumHeight(150)
+            user_text.setStyleSheet("background: #e3f2fd; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
+            user_layout.addWidget(user_text)
+            layout.addWidget(user_group)
+        
+        if 'pet_response' in content:
+            pet_group = QGroupBox("🐾 宠物回复")
+            pet_layout = QVBoxLayout(pet_group)
+            pet_text = QTextEdit()
+            pet_text.setPlainText(content['pet_response'])
+            pet_text.setReadOnly(True)
+            pet_text.setMaximumHeight(200)
+            pet_text.setStyleSheet("background: #f1f8e9; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
+            pet_layout.addWidget(pet_text)
+            layout.addWidget(pet_group)
+        
+        if 'function_calls' in content and content['function_calls']:
+            func_group = QGroupBox("🔧 功能调用")
+            func_layout = QVBoxLayout(func_group)
+            func_text = QTextEdit()
+            func_text.setPlainText(str(content['function_calls']))
+            func_text.setReadOnly(True)
+            func_text.setMaximumHeight(100)
+            func_text.setStyleSheet("background: #fff3e0; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
+            func_layout.addWidget(func_text)
+            layout.addWidget(func_group)
+    
+    def _add_interaction_detail(self, layout: QVBoxLayout):
+        """添加交互详细内容"""
+        content = self.entry.get('content', {})
+        
+        detail_group = QGroupBox("🔄 交互详情")
+        detail_layout = QVBoxLayout(detail_group)
+        
+        for key, value in content.items():
+            if key == 'action':
+                detail_layout.addWidget(QLabel(f"🎯 动作: {value}"))
+            elif key == 'item_name':
+                detail_layout.addWidget(QLabel(f"🎁 物品: {value}"))
+            elif key == 'duration':
+                detail_layout.addWidget(QLabel(f"⏱️ 持续时间: {value}秒"))
+            elif key == 'click_count':
+                detail_layout.addWidget(QLabel(f"👆 点击次数: {value}"))
+            elif key == 'reward_factor':
+                detail_layout.addWidget(QLabel(f"💰 奖励倍数: {value}"))
+            else:
+                detail_layout.addWidget(QLabel(f"{key}: {value}"))
+        
+        layout.addWidget(detail_group)
+    
+    def _add_general_detail(self, layout: QVBoxLayout):
+        """添加通用详细内容"""
+        content = self.entry.get('content', {})
+        
+        detail_group = QGroupBox("📋 详细内容")
+        detail_layout = QVBoxLayout(detail_group)
+        
+        detail_text = QTextEdit()
+        detail_text.setPlainText(str(content))
+        detail_text.setReadOnly(True)
+        detail_text.setStyleSheet("background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
+        detail_layout.addWidget(detail_text)
+        
+        layout.addWidget(detail_group)
+    
+    def _open_image_externally(self, file_path: str):
+        """用系统默认程序打开图像"""
+        try:
+            import subprocess
+            import platform
+            
+            system = platform.system()
+            if system == "Windows":
+                subprocess.run(['start', file_path], shell=True, check=True)
+            elif system == "Darwin":  # macOS
+                subprocess.run(['open', file_path], check=True)
+            else:  # Linux
+                subprocess.run(['xdg-open', file_path], check=True)
+        except Exception as e:
+            QMessageBox.warning(self, "打开失败", f"无法打开图像文件:\n{str(e)}")
 
 class DiaryEntryWidget(QFrame):
     """单个日记条目的UI组件 - 优化版本"""
@@ -39,6 +269,7 @@ class DiaryEntryWidget(QFrame):
         QFrame:hover {
             background-color: #f5f5f5;
             border-color: #d0d0d0;
+            cursor: pointer;
         }
     """
     
@@ -46,6 +277,9 @@ class DiaryEntryWidget(QFrame):
         super().__init__(parent)
         self.entry = entry
         self.setup_ui()
+        
+        # 让整个卡片可以点击
+        self.setCursor(QCursor(Qt.PointingHandCursor))
     
     def setup_ui(self):
         """设置UI - 优化版本"""
@@ -70,8 +304,9 @@ class DiaryEntryWidget(QFrame):
         
         header_layout.addStretch()
         
-        # 时间
-        time_str = datetime.fromisoformat(self.entry['timestamp']).strftime('%m-%d %H:%M')
+        # 时间 - 转换为上海时间
+        shanghai_time = self._convert_to_shanghai_time(self.entry['timestamp'])
+        time_str = shanghai_time.strftime('%m-%d %H:%M')
         time_label = QLabel(time_str)
         time_label.setStyleSheet("color: #999; font-size: 9px; margin: 0;")
         header_layout.addWidget(time_label)
@@ -80,6 +315,44 @@ class DiaryEntryWidget(QFrame):
         
         # 内容预览 - 延迟加载复杂内容
         self._add_content_preview(layout)
+        
+        # 添加点击提示
+        hint_label = QLabel("💡 点击查看详细内容")
+        hint_label.setStyleSheet("color: #999; font-size: 8px; text-align: center;")
+        hint_label.setAlignment(Qt.AlignCenter)
+        layout.addWidget(hint_label)
+    
+    def _convert_to_shanghai_time(self, timestamp_str: str) -> datetime:
+        """转换时间戳为上海时间"""
+        try:
+            shanghai_tz = pytz.timezone('Asia/Shanghai')
+            
+            # 解析时间戳
+            if timestamp_str.endswith('Z'):
+                # UTC时间
+                utc_time = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            elif '+' in timestamp_str or timestamp_str.endswith('00:00'):
+                # 带时区的时间
+                utc_time = datetime.fromisoformat(timestamp_str)
+            else:
+                # 无时区信息，假设为UTC
+                utc_time = datetime.fromisoformat(timestamp_str)
+                utc_time = pytz.utc.localize(utc_time)
+            
+            # 如果没有时区信息，添加UTC时区
+            if utc_time.tzinfo is None:
+                utc_time = pytz.utc.localize(utc_time)
+            
+            # 转换为上海时间
+            return utc_time.astimezone(shanghai_tz)
+            
+        except Exception as e:
+            print(f"⚠️ 时间转换失败: {e}, 使用原始时间")
+            # 如果转换失败，返回原始时间
+            try:
+                return datetime.fromisoformat(timestamp_str.replace('Z', ''))
+            except:
+                return datetime.now()
     
     def _get_type_info(self, entry_type: str) -> Dict[str, str]:
         """获取类型信息 - 缓存优化"""
@@ -123,6 +396,21 @@ class DiaryEntryWidget(QFrame):
             info_label = QLabel(" | ".join(info_parts))
             info_label.setStyleSheet("color: #666; font-size: 9px;")
             layout.addWidget(info_label)
+        
+        # 添加缩略图预览
+        screenshot_info = diary_manager.get_screenshot_details(self.entry['id'])
+        if screenshot_info and screenshot_info.get('thumbnail_path'):
+            thumb_path = screenshot_info['thumbnail_path']
+            if os.path.exists(thumb_path):
+                thumbnail = QLabel()
+                pixmap = QPixmap(thumb_path)
+                if not pixmap.isNull():
+                    scaled_pixmap = pixmap.scaled(60, 60, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+                    thumbnail.setPixmap(scaled_pixmap)
+                    thumbnail.setFixedSize(60, 60)
+                    thumbnail.setStyleSheet("border: 1px solid #ddd; border-radius: 4px; background: white;")
+                    thumbnail.setAlignment(Qt.AlignCenter)
+                    layout.addWidget(thumbnail)
     
     def _add_simple_chat_info(self, layout: QVBoxLayout, content: Dict):
         """简化的聊天信息显示"""
@@ -158,6 +446,17 @@ class DiaryEntryWidget(QFrame):
             details_label = QLabel(details_text)
             details_label.setStyleSheet("color: #666; font-size: 9px; padding: 2px 6px; background: #fff3e0; border-radius: 4px;")
             layout.addWidget(details_label)
+    
+    def mousePressEvent(self, event):
+        """鼠标点击事件"""
+        if event.button() == Qt.LeftButton:
+            self._show_detail_dialog()
+        super().mousePressEvent(event)
+    
+    def _show_detail_dialog(self):
+        """显示详细内容对话框"""
+        dialog = DetailViewDialog(self.entry, self.parent())
+        dialog.exec()
 
 class DiaryWindow(QWidget):
     """日记本主窗口 - 优化版本"""
