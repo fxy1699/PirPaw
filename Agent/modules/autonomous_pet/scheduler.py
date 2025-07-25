@@ -18,6 +18,13 @@ class AutonomousScheduler:
         self.max_interval_minutes = max_interval
         
         self.last_execution = datetime.now()
+        self.next_behavior_time = None  # 新增：跟踪下次行为时间
+        self._update_next_behavior_time()  # 初始化下次行为时间
+    
+    def _update_next_behavior_time(self):
+        """更新下次行为时间"""
+        interval_seconds = self.get_next_interval()
+        self.next_behavior_time = datetime.now() + timedelta(seconds=interval_seconds)
     
     def get_next_interval(self) -> float:
         """获取下次检查的间隔时间（秒）"""
@@ -61,5 +68,12 @@ class AutonomousScheduler:
         return random.random() < probability
     
     def record_execution(self):
-        """记录执行时间"""
-        self.last_execution = datetime.now() 
+        """记录执行时间并更新下次行为时间"""
+        self.last_execution = datetime.now()
+        self._update_next_behavior_time()
+    
+    def get_time_until_next_behavior(self) -> Optional[timedelta]:
+        """获取距离下次行为的时间"""
+        if self.next_behavior_time:
+            return self.next_behavior_time - datetime.now()
+        return None 

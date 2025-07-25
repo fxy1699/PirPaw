@@ -19,6 +19,9 @@ class BehaviorExecutor:
         self.ui_callback = None
         self.bubble_callback = None  # 新增：气泡接口
         
+        # 行为状态跟踪
+        self.last_behavior_time = None  # 新增：记录上次行为时间
+        
     def set_chat_interface(self, chat_interface):
         """设置聊天界面接口"""
         self.chat_interface = chat_interface
@@ -34,6 +37,9 @@ class BehaviorExecutor:
     def execute_behavior(self, action_plan: Dict[str, Any]) -> bool:
         """执行行为计划"""
         try:
+            # 记录行为执行时间
+            self.last_behavior_time = datetime.now()
+            
             action_type = action_plan['action_type']
             
             print(f"🎭 执行行为: {action_type}")
