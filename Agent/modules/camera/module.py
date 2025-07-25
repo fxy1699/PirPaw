@@ -21,7 +21,58 @@ class CameraModule(BaseModule):
         self.sitting_start_time = None
         self._auto_check_thread = None
         self._auto_check_running = False
-        
+        self.ai_pose_bot = self._init_ai_pose_bot()
+
+    def _init_ai_pose_bot(self):
+        try:
+            from qwen_agent.agents import Assistant
+            llm_cfg = {'model': 'qwen-vl-plus'}
+            system = '你是一个人体姿态分析AI助手，用户会上传一张包含人物的照片，请你用简洁的语言分析照片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势。'
+            bot = Assistant(
+                llm=llm_cfg,
+                name='AI姿态分析助手',
+                description='分析用户姿态图片',
+                system_message=system,
+                function_list=[],
+            )
+            return bot
+        except Exception as e:
+            print(f"⚠️ AI姿态分析助手初始化失败: {e}")
+            return None
+
+    def _get_pose_analysis(self, photo_path):
+        """用ai_pose_bot分析姿势图片，返回姿势描述"""
+        if not self.ai_pose_bot:
+            return "[未启用AI姿态分析助手]"
+        try:
+            import base64
+            import mimetypes
+            with open(photo_path, "rb") as f:
+                image_bytes = f.read()
+            mime_type, _ = mimetypes.guess_type(photo_path)
+            if not mime_type:
+                mime_type = "image/png"
+            image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+            image_url = f"data:{mime_type};base64,{image_b64}"
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"image": image_url},
+                        {"text": "请分析这张图片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势"}
+                    ]
+                }
+            ]
+            response = []
+            for chunk in self.ai_pose_bot.run(messages=messages):
+                response.extend(chunk)
+            if response:
+                return response[-1].get('content', '[未获得姿态分析结果]')
+            else:
+                return '[未获得姿态分析结果]'
+        except Exception as e:
+            return f"[姿态分析失败: {e}]"
+
     def setup(self, config=None):
         """初始化摄像头功能"""
         super().setup(config)
@@ -90,18 +141,17 @@ class CameraModule(BaseModule):
             return f"📷 摄像头分析遇到问题: {str(e)}"
     
     def check_posture(self):
-        """检查用户姿态（集成拍照）"""
+        """检查用户姿态（集成拍照+AI分析）"""
         if not self._can_capture():
             return "📷 暂时无法检测姿态"
         try:
             photo_path = self.capture_photo()
             if not photo_path:
                 return "📷 拍照失败，无法检测姿态"
-            pose_data = self._detect_pose(photo_path)
-            if pose_data:
-                return self._analyze_posture(pose_data)
-            else:
-                return "📷 未检测到用户，请确保坐在摄像头前"
+            # 用AI分析姿态
+            ai_result = self._get_pose_analysis(photo_path)
+            print('ai姿态分析', ai_result)
+            return f"[AI姿态分析]\n{ai_result}\n\n[图片路径] {photo_path}"
         except Exception as e:
             return f"📷 姿态检测失败: {e}"
     
