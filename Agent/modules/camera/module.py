@@ -374,7 +374,7 @@ class CameraModule(BaseModule):
         """Function Call: 拍照并返回图片路径"""
         return self.capture_photo()
 
-    def start_auto_pose_check(self, interval_minutes=3):
+    def start_auto_pose_check(self, interval_minutes=40):
         """启动定时自动姿态检测"""
         if self._auto_check_thread and self._auto_check_thread.is_alive():
             print("[CameraModule] 自动姿态检测线程已在运行")
