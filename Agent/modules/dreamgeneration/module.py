@@ -203,18 +203,19 @@ class DreamGenerationModule(BaseModule):
             f"心情关键词：{keywords_str}\n"
             f"梦境："
         )
-        # 调用大模型生成
-        response = ""
-        try:
-            response = []
-            for response in self.dream_bot.run(messages=[{"role": "user", "content": prompt}]):
-                continue
-                # print(f"[DEBUG] bot response: {response}")
-            response = response[0]["content"]
-        except Exception as e:
-            print(f"❌ 梦境生成失败: {e}")
-            response = self._generate_simple_dream(keywords_str)
-        return response
+        return prompt
+        # # 调用大模型生成
+        # response = ""
+        # try:
+        #     response = []
+        #     for response in self.dream_bot.run(messages=[{"role": "user", "content": prompt}]):
+        #         continue
+        #         # print(f"[DEBUG] bot response: {response}")
+        #     response = response[0]["content"]
+        # except Exception as e:
+        #     print(f"❌ 梦境生成失败: {e}")
+        #     response = self._generate_simple_dream(keywords_str)
+        # return response
     
     def _generate_simple_dream(self, keywords_str: str) -> str:
         """简化模式：生成基础梦境文本"""
