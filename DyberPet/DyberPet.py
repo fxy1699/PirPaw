@@ -2185,14 +2185,14 @@ class PetWidget(QWidget):
                 self.diary_window.activateWindow()
                 return
             
-            # 创建新的日记本窗口
-            print("📖 创建新的日记本窗口...")
-            self.diary_window = DiaryWindow()  # 不设置parent，让窗口独立显示
-            self.diary_window.setWindowFlags(self.diary_window.windowFlags() | Qt.WindowStaysOnTopHint)
-            self.diary_window.show()
-            self.diary_window.raise_()
-            self.diary_window.activateWindow()
-            print("✅ 日记本窗口已打开并激活")
+                            # 创建新的日记本窗口
+                print("📖 创建新的日记本窗口...")
+                self.diary_window = DiaryWindow()  # 不设置parent，让窗口独立显示
+                # 移除置顶标志，让窗口可以被其他应用覆盖
+                self.diary_window.show()
+                self.diary_window.raise_()
+                self.diary_window.activateWindow()
+                print("✅ 日记本窗口已打开并激活")
             
         except Exception as e:
             print(f"❌ 打开日记本失败: {e}")

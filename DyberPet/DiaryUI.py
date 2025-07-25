@@ -37,8 +37,11 @@ class DetailViewDialog(QDialog):
     def setup_ui(self):
         """设置UI"""
         self.setWindowTitle(f"📖 详细内容 - {self.entry['title']}")
-        self.setModal(True)
+        self.setModal(False)  # 改为非模态，允许其他窗口获得焦点
         self.resize(800, 600)
+        
+        # 设置窗口标志，移除置顶行为
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)
         
         layout = QVBoxLayout(self)
         
@@ -496,6 +499,9 @@ class DiaryWindow(QWidget):
         self.setWindowTitle("🐾 DyberPet 日记本")
         self.setGeometry(100, 100, 1100, 750)
         self.setWindowIcon(QIcon(os.path.join(basedir, 'res/icons/icon.png')))
+        
+        # 设置窗口标志，允许其他应用覆盖此窗口
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)
         
         # 简化的窗口样式，移除不支持的属性
         self.setStyleSheet("""
