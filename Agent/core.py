@@ -77,7 +77,7 @@ class AgentCore:
     def get_default_config(self):
         """获取默认配置"""
         return {
-            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "dreamgeneration"],
+            "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "dreamgeneration", "watchtv"],
             "global_settings": {
                 "language": "zh-CN",
                 "debug_mode": False
@@ -117,6 +117,20 @@ class AgentCore:
                     "tracking_interval": 5,
                     "auto_start": False,
                     "show_detailed_windows": True
+                },
+                "dreamgeneration": {
+                    "enabled": True,
+                    "model": "qwen-plus",
+                    "max_tokens": 2000,
+                    "max_conversation_history": 20,
+                    "max_exec_steps": 10,
+                    "personality": "梦境生成助手",
+                    "save_conversation_history": False
+                },
+                "watchtv": {
+                    "enabled": True,
+                    "check_interval": 5,
+                    "personality": "看电视检测助手"
                 }
             }
         }
@@ -148,7 +162,7 @@ class AgentCore:
                 # 获取模块特定配置
                 module_config = module_configs.get(module_key, {})
                 
-                # 如果是Chat模块，设置AgentCore引用以支持跨模块调用
+                # 如果是Chat 或者 watchTV 模块，设置AgentCore引用以支持跨模块调用
                 if hasattr(module, 'set_agent_core'):
                     module.set_agent_core(self)
                 
@@ -224,6 +238,9 @@ class AgentCore:
             "modules": [m.get_status() for m in self.modules],
             "config": self.config
         }
+
+    def get_all_modules(self):
+        return self.modules
 
     def reload_modules(self):
         """重新加载模块"""

@@ -1,5 +1,5 @@
 {
-  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "dreamgeneration"],
+  "enabled_modules": ["chat", "vision", "camera", "tools", "tracker", "petaction", "dreamgeneration", "watchtv"],
   "global_settings": {
     "language": "zh-CN",
     "debug_mode": false,
@@ -61,6 +61,11 @@
       "max_exec_steps": 10,
       "personality": "梦境生成助手",
       "save_conversation_history": false
+    },
+    "watchtv": {
+      "enabled": true,
+      "check_interval": 5,
+      "personality": "看电视检测助手"
     }
   }
 } 
