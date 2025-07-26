@@ -236,77 +236,78 @@ class BehaviorExecutor:
             
             print(f"🔧 调用真实工具: {tool_name} -> {function_name}")
             
-            # 查找对应的模块和功能
+            # 查找ChatModule
+            chat_module = None
             for module in self.agent_core.modules:
-                if hasattr(module, 'get_available_functions'):
-                    functions = module.get_available_functions()
-                    for func_info in functions:
-                        if func_info['name'] == function_name:
-                            # 找到对应的功能，调用它
-                            try:
-                                # 根据不同工具类型构造合适的消息
-                                message = self._get_tool_message(tool_name, function_name, reason)
-                                result_text = module.handle_message(message)
-                                
-                                return {
-                                    'success': True,
-                                    'data': result_text,
-                                    'tool_used': function_name,
-                                    'original_tool': tool_name
-                                }
-                            except Exception as e:
-                                print(f"⚠️ 调用工具 {function_name} 失败: {e}")
-                                break
+                if module.__class__.__name__ == "ChatModule" and module.enabled:
+                    chat_module = module
+                    break
             
-            # 如果没找到对应工具，降级到模拟
-            print(f"⚠️ 未找到工具 {function_name}，使用模拟结果")
-            return self._simulate_tool_call(tool_name)
+            if not chat_module:
+                print(f"⚠️ 未找到ChatModule，使用模拟结果")
+                return self._simulate_tool_call(tool_name)
+            
+            # 检查模块功能注册表
+            if not hasattr(chat_module, 'module_registry') or not chat_module.module_registry:
+                print(f"⚠️ ChatModule功能注册表未初始化，使用模拟结果")
+                return self._simulate_tool_call(tool_name)
+            
+            # 检查功能是否可用
+            registry = chat_module.module_registry
+            if function_name not in registry.function_map:
+                print(f"⚠️ 功能 {function_name} 未注册，使用模拟结果")
+                available_functions = registry.get_available_functions()
+                print(f"📋 可用功能: {available_functions[:5]}...")  # 只显示前5个
+                return self._simulate_tool_call(tool_name)
+            
+            # 调用功能
+            try:
+                # 根据工具类型构造合适的参数
+                arguments = self._get_tool_arguments(tool_name, function_name, reason)
+                
+                print(f"🚀 通过注册表调用功能: {function_name}")
+                print(f"📥 调用参数: {arguments}")
+                
+                result = registry.call_function_directly(function_name, arguments)
+                
+                print(f"✅ 工具调用成功: {result}")
+                
+                return {
+                    'success': True,
+                    'data': result,
+                    'tool_used': function_name,
+                    'original_tool': tool_name
+                }
+                
+            except Exception as e:
+                print(f"⚠️ 调用工具 {function_name} 失败: {e}")
+                return self._simulate_tool_call(tool_name)
             
         except Exception as e:
             print(f"❌ 真实工具调用失败: {e}")
             return self._simulate_tool_call(tool_name)
     
-    def _get_tool_message(self, tool_name: str, function_name: str, reason: str) -> str:
-        """根据工具类型生成合适的消息"""
-        # 根据工具类型生成自然语言消息
-        tool_messages = {
-            'get_time': '现在几点了？',
-            'check_system': '系统状态如何？',
-            'get_file_info': '查看文件信息',
-            
-            'take_screenshot': '截个屏看看',
-            'analyze_screen': '分析一下屏幕内容',
-            'extract_text': '提取屏幕上的文字',
-            'analyze_image': '分析图像内容',
-            
-            'pet_status': '宠物状态',
-            'switch_pet': '切换宠物',
-            'list_pets': '列出所有宠物',
-            'control_pet': '控制宠物动作',
-            
-            'get_usage_stats': '今天的使用统计',
-            'start_tracking': '开始追踪',
-            'stop_tracking': '停止追踪',
-            'tracking_status': '追踪状态',
-            'usage_report': '生成使用报告',
-            
-            'check_posture': '检查我的坐姿',
-            'check_health': '检查健康状态',
-            'check_fatigue': '检查疲劳状态',
-            'camera_status': '摄像头状态',
-            'take_photo': '拍个照',
-            
-            'work_summary': '生成工作总结',
-            'generate_dream': '生成一个梦境',
-            'watch_status': '检查是否在看视频',
-            
-            # 兼容旧工具
-            'check_weather': '现在几点了？',
-            'learn_something': '生成一个梦境',
-            'remind_user': '现在几点了？'
-        }
+    def _get_tool_arguments(self, tool_name: str, function_name: str, reason: str) -> dict:
+        """根据工具类型生成合适的参数"""
+        # 大部分工具不需要参数
+        if tool_name in ['get_time', 'check_system', 'pet_status', 'list_pets', 
+                        'get_usage_stats', 'tracking_status', 'camera_status',
+                        'watch_status', 'take_screenshot']:
+            return {}
         
-        return tool_messages.get(tool_name, f"执行{tool_name}")
+        # 需要参数的工具
+        if tool_name == 'control_pet':
+            return {"action_command": "随机动作"}
+        elif tool_name == 'switch_pet':
+            return {"pet_name": "Kitty"}
+        elif tool_name == 'check_posture':
+            return {"duration": 5}
+        elif tool_name == 'take_photo':
+            return {"save_path": "temp_photo.jpg"}
+        elif tool_name == 'work_summary':
+            return {"date": "today"}
+        
+        return {}
     
     def _format_behavior_message(self, action_type: str, content: str) -> str:
         """格式化行为消息"""
@@ -430,7 +431,7 @@ class BehaviorExecutor:
         
         return final_segments
     
-    def _simulate_tool_call(self, tool: str) -> Dict[str, Any]:
+    def _simulate_tool_call(self, tool_name: str) -> Dict[str, Any]:
         """模拟工具调用（简单版本）"""
         results = {
             'check_weather': {
@@ -460,7 +461,7 @@ class BehaviorExecutor:
             }
         }
         
-        return results.get(tool, {'success': False, 'data': '未知工具'})
+        return results.get(tool_name, {'success': False, 'data': '未知工具'})
     
     def _generate_tool_feedback(self, tool: str, result: Dict[str, Any], reason: str) -> str:
         """生成工具调用反馈消息 - 基于真实结果的智能回复"""
