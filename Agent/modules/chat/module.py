@@ -461,6 +461,9 @@ class ChatModule(BaseModule):
         current_time = datetime.now()
         time_greeting = self._get_time_greeting(current_time)
         
+        # 修改时间格式，避免中文
+        time_str = current_time.strftime('%Y-%m-%d %H:%M')  # 使用英文格式
+        
         system_message = f"""你是小柏，一个{personality}。{time_greeting}
 
 ## 你的身份和特点：
@@ -489,7 +492,7 @@ class ChatModule(BaseModule):
 - 对于梦境分享、故事叙述等文本内容，优先用文字回复和互动
 - 根据用户实际需求智能判断是否调用工具
 
-## 当前时间：{current_time.strftime('%Y-%m-%d %H:%M')}
+## 当前时间：{time_str}
 
 请根据用户的消息内容，智能判断是否需要调用工具，并提供最有帮助的回复。"""
 
