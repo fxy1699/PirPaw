@@ -292,6 +292,177 @@ class DiaryManager:
             print(f"❌ 添加自主行为记录失败: {e}")
             return None
     
+    def add_ai_diary_entry(self, pet_name: str, tool_call_data: Dict, ai_response: str, 
+                          emotions: Dict = None, agent_core=None) -> int:
+        """添加AI生成的真实日记条目"""
+        try:
+            # 生成日记提示词
+            diary_prompt = self._create_diary_prompt(tool_call_data, ai_response, emotions)
+            
+            # 通过AI生成日记内容
+            diary_content = self._generate_diary_with_ai(diary_prompt, agent_core)
+            
+            # 生成日记标题 (日期 + 天气/心情)
+            title = self._generate_diary_title(emotions)
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # 构建详细内容
+                details = {
+                    "diary_type": "ai_generated",
+                    "original_tool_call": tool_call_data,
+                    "ai_response": ai_response,
+                    "emotions": emotions or {},
+                    "generated_content": diary_content,
+                    "prompt_used": diary_prompt,
+                    "created_time": datetime.now().isoformat()  # 转换为ISO格式字符串
+                }
+                
+                content_json = json.dumps(details, ensure_ascii=False, default=str)  # 添加default=str处理其他类型
+                
+                # 添加日记条目
+                cursor.execute('''
+                    INSERT INTO diary_entries (entry_type, title, content, pet_name)
+                    VALUES (?, ?, ?, ?)
+                ''', ('ai_diary', title, content_json, pet_name))
+                
+                entry_id = cursor.lastrowid
+                
+                # 添加交互详细记录
+                cursor.execute('''
+                    INSERT INTO interactions (diary_entry_id, interaction_type, details, duration)
+                    VALUES (?, ?, ?, ?)
+                ''', (entry_id, 'ai_diary', content_json, None))
+                
+                conn.commit()
+                print(f"📖 AI日记已添加: {title}")
+                return entry_id
+                
+        except Exception as e:
+            print(f"❌ 添加AI日记失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _create_diary_prompt(self, tool_call_data: Dict, ai_response: str, emotions: Dict) -> str:
+        """创建日记生成的提示词"""
+        # 获取工具调用信息
+        tool_name = tool_call_data.get('tool_name', '未知工具')
+        reason = tool_call_data.get('reason', '未知原因')
+        result_data = tool_call_data.get('result_data', '')
+        
+        # 情绪状态描述
+        emotion_desc = self._emotions_to_description(emotions)
+        
+        # 时间和天气
+        time_info = self._get_time_and_weather_info()
+        
+        prompt = f"""
+请根据以下信息，写一篇像真实日记一样的文字，风格要文学化、温暖、有画面感：
+
+**背景信息：**
+- 时间：{time_info}
+- 我的心情：{emotion_desc}
+- 我刚刚：{reason}
+- 工具调用：{tool_name}
+- 获得的信息：{result_data[:100]}...
+- 我的感受：{ai_response[:100]}...
+
+**写作要求：**
+1. 像真实的日记一样，用第一人称，以"我"的视角
+2. 不超过200字
+3. 要有具体的细节和画面感
+4. 结合我的心情和刚才的经历
+5. 文字要优美、温暖
+6. 可以加入一些想象的生活场景
+7. 不要直接提到"工具调用"等技术词汇
+8. 要有情感温度，像人类写的日记
+
+请直接输出日记内容，不要其他说明。
+"""
+        return prompt
+    
+    def _emotions_to_description(self, emotions: Dict) -> str:
+        """将情绪数值转换为文字描述"""
+        if not emotions:
+            return "平静"
+        
+        happiness = emotions.get('happiness', 0.5)
+        energy = emotions.get('energy', 0.5)
+        boredom = emotions.get('boredom', 0.5)
+        curiosity = emotions.get('curiosity', 0.5)
+        loneliness = emotions.get('loneliness', 0.5)
+        
+        if happiness > 0.7:
+            if energy > 0.7:
+                return "兴奋愉悦，充满活力"
+            else:
+                return "开心满足，内心温暖"
+        elif happiness < 0.3:
+            if loneliness > 0.7:
+                return "有些孤单，渴望陪伴"
+            else:
+                return "心情低落，需要安慰"
+        elif curiosity > 0.7:
+            return "好奇心满满，想要探索"
+        elif boredom > 0.7:
+            return "有些无聊，想找点事做"
+        else:
+            return "心情平静，状态还不错"
+    
+    def _get_time_and_weather_info(self) -> str:
+        """获取时间和天气信息"""
+        from datetime import datetime
+        import random
+        
+        now = datetime.now()
+        weekdays = ['一', '二', '三', '四', '五', '六', '日']
+        weekday = weekdays[now.weekday()]
+        
+        # 随机生成天气描述
+        weather_options = [
+            "晴", "多云", "阴", "小雨", "薄雾", "晴转多云", 
+            "多云转晴", "微风", "细雨", "晴转薄荷色黄昏"
+        ]
+        weather = random.choice(weather_options)
+        
+        return f"{now.month}月{now.day}日 星期{weekday} {weather}"
+    
+    def _generate_diary_with_ai(self, prompt: str, agent_core) -> str:
+        """使用AI生成日记内容"""
+        try:
+            if not agent_core:
+                return "今天过得还不错，心情平静。"
+            
+            # 查找Chat模块
+            chat_module = None
+            for module in agent_core.modules:
+                if module.__class__.__name__ == "ChatModule" and module.enabled:
+                    chat_module = module
+                    break
+            
+            if not chat_module:
+                return "今天过得还不错，心情平静。"
+            
+            # 生成日记内容
+            diary_content = chat_module.handle_message(prompt)
+            
+            # 清理返回内容，确保不超过200字
+            if diary_content and len(diary_content) > 200:
+                diary_content = diary_content[:200] + "..."
+            
+            return diary_content or "今天过得还不错，心情平静。"
+            
+        except Exception as e:
+            print(f"⚠️ AI生成日记失败: {e}")
+            return "今天过得还不错，心情平静。"
+    
+    def _generate_diary_title(self, emotions: Dict) -> str:
+        """生成日记标题"""
+        time_info = self._get_time_and_weather_info()
+        return f"📖 {time_info}"
+    
     def get_entries(self, entry_type: str = None, limit: int = 50, offset: int = 0, 
                    start_date: datetime = None, end_date: datetime = None) -> List[Dict]:
         """获取日记条目"""

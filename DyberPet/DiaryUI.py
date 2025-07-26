@@ -167,8 +167,20 @@ class DetailViewDialog(QDialog):
             self._add_interaction_detail(content_layout)
         elif self.entry['entry_type'] == 'autonomous_behavior':
             self._add_autonomous_behavior_detail(content_layout)
+        elif self.entry['entry_type'] == 'ai_diary':
+            self._add_ai_diary_detail(content_layout)
         else:
-            self._add_general_detail(content_layout)
+            # 通用内容显示
+            content_group = QGroupBox("�� 内容详情")
+            detail_layout = QVBoxLayout(content_group)
+            
+            detail_text = QTextEdit()
+            detail_text.setPlainText(str(self.entry.get('content', {})))
+            detail_text.setReadOnly(True)
+            detail_text.setStyleSheet("background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
+            detail_layout.addWidget(detail_text)
+            
+            layout.addWidget(content_group)
         
         content_scroll.setWidget(content_widget)
         layout.addWidget(content_scroll)
@@ -407,6 +419,75 @@ class DetailViewDialog(QDialog):
             
             layout.addWidget(emotion_group)
     
+    def _add_ai_diary_detail(self, layout: QVBoxLayout):
+        """添加AI日记详细内容"""
+        content = self.entry.get('content', {})
+        
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+        
+        # 获取AI生成的日记内容
+        generated_content = content.get('generated_content', '')
+        original_tool_call = content.get('original_tool_call', {})
+        ai_response = content.get('ai_response', '')
+        emotions = content.get('emotions', {})
+        
+        # AI日记内容组
+        diary_group = QGroupBox("📝 AI生成的日记")
+        diary_layout = QVBoxLayout(diary_group)
+        
+        if generated_content:
+            diary_text = QTextEdit()
+            diary_text.setPlainText(generated_content)
+            diary_text.setReadOnly(True)
+            diary_text.setMaximumHeight(300)
+            diary_text.setStyleSheet("background: #f8fff8; border: 1px solid #ddd; border-radius: 4px; padding: 12px; font-family: 'Microsoft YaHei', sans-serif; font-size: 11px; line-height: 1.6;")
+            diary_layout.addWidget(diary_text)
+        
+        layout.addWidget(diary_group)
+        
+        # 原始信息组
+        if original_tool_call:
+            original_group = QGroupBox("🛠️ 基于的工具调用")
+            original_layout = QGridLayout(original_group)
+            
+            tool_name = original_tool_call.get('tool_name', '未知工具')
+            reason = original_tool_call.get('reason', '未知原因')
+            result_data = original_tool_call.get('result_data', '')
+            
+            original_layout.addWidget(QLabel("工具:"), 0, 0)
+            original_layout.addWidget(QLabel(f"🛠️ {tool_name}"), 0, 1)
+            
+            original_layout.addWidget(QLabel("原因:"), 1, 0)
+            original_layout.addWidget(QLabel(f"🎯 {reason}"), 1, 1)
+            
+            if result_data:
+                original_layout.addWidget(QLabel("结果:"), 2, 0)
+                result_label = QLabel(result_data[:100] + ('...' if len(result_data) > 100 else ''))
+                result_label.setWordWrap(True)
+                result_label.setStyleSheet("padding: 4px; background: #f5f5f5; border-radius: 4px;")
+                original_layout.addWidget(result_label, 2, 1)
+            
+            layout.addWidget(original_group)
+        
+        # AI回复组
+        if ai_response:
+            response_group = QGroupBox("🤖 AI原始回复")
+            response_layout = QVBoxLayout(response_group)
+            
+            response_text = QTextEdit()
+            response_text.setPlainText(ai_response)
+            response_text.setReadOnly(True)
+            response_text.setMaximumHeight(150)
+            response_text.setStyleSheet("background: #f0f8ff; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-family: 'Microsoft YaHei', sans-serif;")
+            response_layout.addWidget(response_text)
+            
+            layout.addWidget(response_group)
+    
     def _open_image_externally(self, file_path: str):
         """用系统默认程序打开图像"""
         try:
@@ -627,7 +708,8 @@ class DiaryEntryWidget(QFrame):
             'chat': {'icon': '💬', 'color': '#2196F3'},
             'status_change': {'icon': '📊', 'color': '#9C27B0'},
             'system': {'icon': '⚙️', 'color': '#607D8B'},
-            'autonomous_behavior': {'icon': '🤖', 'color': '#E91E63'}  # 新增自主行为类型
+            'autonomous_behavior': {'icon': '🤖', 'color': '#E91E63'},  # 新增自主行为类型
+            'ai_diary': {'icon': '📝', 'color': '#00BCD4'} # 新增AI日记类型
         }
         return type_map.get(entry_type, {'icon': '📝', 'color': '#666'})
     
@@ -643,6 +725,8 @@ class DiaryEntryWidget(QFrame):
             self._add_simple_interaction_info(layout, content)
         elif self.entry['entry_type'] == 'autonomous_behavior':
             self._add_simple_autonomous_behavior_info(layout, content)
+        elif self.entry['entry_type'] == 'ai_diary':
+            self._add_simple_ai_diary_info(layout, content)
         else:
             # 通用内容显示
             content_text = str(content)[:80] + ('...' if len(str(content)) > 80 else '')
@@ -748,6 +832,34 @@ class DiaryEntryWidget(QFrame):
         behavior_label.setStyleSheet("color: #555; font-size: 9px; padding: 2px 6px; background: #fce4ec; border-radius: 4px;")
         behavior_label.setWordWrap(True)
         layout.addWidget(behavior_label)
+    
+    def _add_simple_ai_diary_info(self, layout: QVBoxLayout, content: Dict):
+        """简化的AI日记信息显示"""
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+        
+        # 获取AI生成的日记内容
+        generated_content = content.get('generated_content', '')
+        original_tool_call = content.get('original_tool_call', {})
+        ai_response = content.get('ai_response', '')
+        emotions = content.get('emotions', {})
+        
+        # 显示日记内容的前50个字符作为预览
+        diary_preview = generated_content[:50] + ('...' if len(generated_content) > 50 else '')
+        
+        ai_diary_text = f"📝 AI日记"
+        if diary_preview:
+            ai_diary_text += f"\n{diary_preview}"
+        ai_diary_text += f"\n🛠️ 基于: {original_tool_call.get('tool_name', '未知工具')}"
+        
+        ai_diary_label = QLabel(ai_diary_text)
+        ai_diary_label.setStyleSheet("color: #333; font-size: 9px; padding: 2px 6px; background: #e8f5e8; border-radius: 4px; border-left: 3px solid #4CAF50;")
+        ai_diary_label.setWordWrap(True)
+        layout.addWidget(ai_diary_label)
     
     def mousePressEvent(self, event):
         """鼠标点击事件"""
@@ -1163,7 +1275,8 @@ class DiaryWindow(QWidget):
                 'chat': '💬 聊天',
                 'status_change': '📊 状态',
                 'system': '⚙️ 系统',
-                'autonomous_behavior': '🤖 自主行为'
+                'autonomous_behavior': '🤖 自主行为',
+                'ai_diary': '📝 AI日记'
             }
             
             for entry_type, count in type_stats.items():

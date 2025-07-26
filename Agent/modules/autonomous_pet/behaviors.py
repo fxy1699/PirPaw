@@ -147,7 +147,7 @@ class BehaviorExecutor:
         else:
             # 降级到模拟工具调用
             print("⚠️ Agent核心未连接，使用模拟工具调用")
-            result = self._simulate_tool_call(tool)
+        result = self._simulate_tool_call(tool)
         
         # Debug: 显示完整的工具调用结果
         print(f"🔍 [DEBUG] 工具调用完整结果:")
@@ -189,18 +189,7 @@ class BehaviorExecutor:
                 print(f"⚠️ 发送工具调用结果失败: {e}")
                 success = False
         
-        # 记录完整的工具调用到宠物内存
-        if self.memory:
-            try:
-                self.memory.save_interaction(
-                    interaction_type='tool_call',
-                    content=f"工具: {tool}, 原因: {reason}, 结果: {result.get('data', '未知')}, 反馈: {full_feedback}"
-                )
-                print(f"✅ 工具调用已记录到宠物内存")
-            except Exception as e:
-                print(f"⚠️ 记录工具调用到内存失败: {e}")
-        
-        # 记录到日记本（包含完整信息）
+        # 记录到日记本（只记录AI生成的真实日记）
         try:
             from ...data.diary.diary_manager import diary_manager
             
@@ -216,21 +205,18 @@ class BehaviorExecutor:
                 'action_plan': action_plan
             }
             
-            diary_manager.add_autonomous_behavior_entry(
-                behavior_type='工具调用',
-                action_name=f"调用 {tool}",
-                content=f"调用 {tool} - {reason}",
-                trigger_reason=reason,
-                emotions_before=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
-                emotions_after=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
+            # 生成AI风格的真实日记
+            diary_manager.add_ai_diary_entry(
                 pet_name=self._get_current_pet_name(),
-                action_name_original='tool_call',
-                ai_response=full_feedback  # 新增：记录AI的完整回复
+                tool_call_data=diary_content,
+                ai_response=full_feedback,
+                emotions=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
+                agent_core=self.agent_core
             )
-            print(f"✅ 工具调用已记录到日记本")
+            print(f"📖 AI日记已生成并记录")
             
         except Exception as e:
-            print(f"⚠️ 记录工具调用到日记本失败: {e}")
+            print(f"⚠️ 记录AI日记到日记本失败: {e}")
             import traceback
             traceback.print_exc()
         
@@ -494,6 +480,10 @@ class BehaviorExecutor:
                 'success': True,
                 'data': datetime.now().strftime("%H:%M")
             },
+            'take_screenshot': {
+                'success': True,
+                'data': "📸 截屏成功！已保存到screenshots文件夹并复制到剪切板"
+            },
             'learn_something': {
                 'success': True,
                 'data': random.choice([
@@ -510,6 +500,22 @@ class BehaviorExecutor:
             'check_system': {
                 'success': True,
                 'data': f"系统运行正常，当前时间 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            },
+            'pet_status': {
+                'success': True,
+                'data': "宠物状态良好，精神饱满！"
+            },
+            'analyze_screen': {
+                'success': True,
+                'data': "屏幕分析完成，发现了一些有趣的内容"
+            },
+            'work_summary': {
+                'success': True,
+                'data': "工作总结：今天完成了多项任务，效率不错！"
+            },
+            'generate_dream': {
+                'success': True,
+                'data': "生成了一个关于彩虹和云朵的美好梦境"
             }
         }
         

@@ -425,58 +425,6 @@ class AutonomousPetModule(BaseModule):
                         if hasattr(self.scheduler, 'record_execution'):
                             self.scheduler.record_execution()
                         
-                        # 记录到日记本
-                        if success and DIARY_AVAILABLE:
-                            try:
-                                emotions_after = self.emotions.emotions.copy() if self.emotions else {}
-                                
-                                # 获取行为内容
-                                behavior_content = action_plan.get('content', '')
-                                if not behavior_content and 'message' in action_plan:
-                                    behavior_content = action_plan['message']
-                                
-                                # 获取当前宠物名称
-                                pet_name = self._get_current_pet_name()
-
-                                # 将 action_plan 转换为更自然的中文描述
-                                natural_action_name, natural_content, natural_reason = self._convert_action_plan_to_natural_chinese(action_plan)
-
-                                # 特殊处理工具调用的日记记录
-                                if action_plan.get('action_type') == 'tool_call':
-                                    # 工具调用已经在behaviors.py中记录了详细信息，这里记录概要
-                                    tool_name = action_plan.get('tool', 'unknown')
-                                    diary_manager.add_autonomous_behavior_entry(
-                                        behavior_type='自主行为',
-                                        action_name=f"调用 {tool_name}",
-                                        content=f"调用 {tool_name} - {natural_reason}",
-                                        trigger_reason=natural_reason,
-                                        emotions_before=emotions_before,
-                                        emotions_after=emotions_after,
-                                        pet_name=pet_name,
-                                        action_name_original='tool_call',
-                                        ai_response=f"AI回复: {action_plan.get('ai_response', '无回复')}"  # 新增：记录AI回复
-                                    )
-                                else:
-                                    # 其他类型的行为记录
-                                    diary_manager.add_autonomous_behavior_entry(
-                                        behavior_type='自主行为',
-                                        action_name=natural_action_name,
-                                        content=natural_content,
-                                        trigger_reason=natural_reason,
-                                        emotions_before=emotions_before,
-                                        emotions_after=emotions_after,
-                                        pet_name=pet_name,
-                                        action_name_original=action_plan['action_type'],
-                                        ai_response=action_plan.get('ai_response', None)  # 新增：记录AI回复
-                                    )
-                                
-                                print(f"[DEBUG] 自主行为全部内容：{action_plan}")
-                                print(f"📔 自主行为已记录到日记: {natural_action_name}")
-                            except Exception as e:
-                                print(f"⚠️ 记录自主行为到日记失败: {e}")
-                                import traceback
-                                traceback.print_exc()
-                        
                         print(f"✅ 行为执行完成，成功={success}")
                     else:
                         print(f"🤔 大脑思考后决定暂不行动")
