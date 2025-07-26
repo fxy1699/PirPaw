@@ -225,7 +225,7 @@ def init_settings():
     global gravity, fixdragspeedx, fixdragspeedy, tunable_scale, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
            toaster_on, usertag_dict, auto_lock, bubble_on, \
-           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug
+           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug, autonomous_brain_cooldown
 
     # check json file integrity
     try:
@@ -321,6 +321,7 @@ def init_settings():
         autonomous_max_interval = data_params.get('autonomous_max_interval', 0.5)
         autonomous_debug = data_params.get('autonomous_debug', False)
         watchtv_debug = data_params.get('watchtv_debug', False)
+        autonomous_brain_cooldown = data_params.get('autonomous_brain_cooldown', 5.0)
         #======================================================
 
     else:
@@ -350,6 +351,7 @@ def init_settings():
         autonomous_max_interval = 0.5
         autonomous_debug = False
         watchtv_debug = False
+        autonomous_brain_cooldown = 5.0
     check_locale()
     save_settings()
 
@@ -357,7 +359,7 @@ def save_settings():
     global file_path, set_fall, gravity, fixdragspeedx, fixdragspeedy, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
            toaster_on, usertag_dict, auto_lock, bubble_on, \
-           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug
+           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug, autonomous_brain_cooldown
 
     data_js = {'gravity':gravity,
                'set_fall': set_fall,
@@ -379,7 +381,8 @@ def save_settings():
                'autonomous_min_interval':autonomous_min_interval,
                'autonomous_max_interval':autonomous_max_interval,
                'autonomous_debug':autonomous_debug,
-               'watchtv_debug':watchtv_debug
+               'watchtv_debug':watchtv_debug,
+               'autonomous_brain_cooldown':autonomous_brain_cooldown
                }
 
     with open(file_path, 'w', encoding='utf-8') as f:

@@ -2,7 +2,7 @@ import os
 import re
 import json
 import random
-from PySide6.QtCore import QObject, Signal, QTimer
+from PySide6.QtCore import QObject, Signal, QTimer, QMetaObject, Qt, QCoreApplication
 
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
@@ -139,13 +139,12 @@ class BubbleManager(QObject):
             self.trigger_bubble(bb_type)
     
     def trigger_custom_bubble(self, bubble_dict):
-        """触发自定义气泡，支持自动播放功能"""
-        if not bubble_dict:
-            return
-        
-        # 检查是否需要自动播放
-        if bubble_dict.get('auto_play', False) and bubble_dict.get('segments'):
-            # 设置自动播放信息
+        """触发自定义气泡，支持自动播放"""
+        # 检查是否是自动播放气泡
+        if bubble_dict.get('auto_play') and bubble_dict.get('segments'):
+            print(f"🎈 自动播放气泡已启动: {bubble_dict['message']} (共{len(bubble_dict['segments'])}段)")
+            
+            # 保存自动播放信息
             self.current_auto_play = {
                 'bubble_dict': bubble_dict.copy(),
                 'segments': bubble_dict['segments'].copy(),
@@ -163,22 +162,45 @@ class BubbleManager(QObject):
             # 显示第一段
             self._emit_bubble(display_dict)
             
-            # 启动自动播放定时器
+            # 确保在主线程中启动定时器
             if self.current_auto_play['segments']:
-                self.auto_play_timer.start(self.current_auto_play['delay'])
+                self._start_timer_safely()
         else:
             # 普通气泡，直接显示
             self._emit_bubble(bubble_dict)
     
+    def _start_timer_safely(self):
+        """安全地在主线程中启动定时器"""
+        if QCoreApplication.instance().thread() == self.thread():
+            # 当前已在主线程，直接启动
+            self.auto_play_timer.start(self.current_auto_play['delay'])
+            print(f"🎈 定时器已在主线程启动，延迟: {self.current_auto_play['delay']}ms")
+        else:
+            # 在子线程中，通过元对象调用切换到主线程
+            QMetaObject.invokeMethod(
+                self,
+                "_start_timer_in_main_thread",
+                Qt.QueuedConnection
+            )
+            print(f"🎈 通过队列调用切换到主线程启动定时器")
+    
+    def _start_timer_in_main_thread(self):
+        """在主线程中启动定时器"""
+        if self.current_auto_play and self.current_auto_play['segments']:
+            self.auto_play_timer.start(self.current_auto_play['delay'])
+            print(f"🎈 定时器已在主线程启动，延迟: {self.current_auto_play['delay']}ms")
+    
     def _play_next_segment(self):
         """播放下一段文本"""
         if not self.current_auto_play or not self.current_auto_play['segments']:
+            print("🎈 自动播放结束或无更多段落")
             self.auto_play_timer.stop()
             self.current_auto_play = None
             return
         
         # 获取下一段文本
         next_segment = self.current_auto_play['segments'].pop(0)
+        print(f"🎈 播放下一段: {next_segment[:20]}... (剩余{len(self.current_auto_play['segments'])}段)")
         
         # 创建气泡字典
         bubble_dict = self.current_auto_play['bubble_dict'].copy()
@@ -196,9 +218,11 @@ class BubbleManager(QObject):
         # 检查是否还有更多段落
         if self.current_auto_play['segments']:
             # 继续下一段
+            print(f"🎈 准备播放下一段，延迟: {self.current_auto_play['delay']}ms")
             self.auto_play_timer.start(self.current_auto_play['delay'])
         else:
             # 播放完毕
+            print("🎈 所有段落播放完毕")
             self.auto_play_timer.stop()
             self.current_auto_play = None
     

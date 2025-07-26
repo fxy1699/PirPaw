@@ -239,6 +239,18 @@ class SettingInterface(ScrollArea):
         self.AutonomousMaxIntervalCard.setValue(int(settings.autonomous_max_interval * 10))
         self.AutonomousMaxIntervalCard.slider.valueChanged.connect(self._AutonomousMaxIntervalChanged)
         
+        # 大脑冷却期
+        self.AutonomousBrainCooldownCard = Dyber_RangeSettingCard(
+            1.0, 30.0, 0.1,
+            QIcon(os.path.join(basedir, 'res/icons/Timer_icon.png')),
+            self.tr("Brain Cooldown"),
+            self.tr("Minimum cooldown time between autonomous behaviors (minutes, 1-30)"),
+            parent=self.AutonomousGroup
+        )
+        self.AutonomousBrainCooldownCard._is_autonomous_interval = True
+        self.AutonomousBrainCooldownCard.setValue(int(settings.autonomous_brain_cooldown * 10))
+        self.AutonomousBrainCooldownCard.slider.valueChanged.connect(self._AutonomousBrainCooldownChanged)
+        
         # Debug模式
         self.AutonomousDebugCard = SwitchSettingCard(
             QIcon(os.path.join(basedir, 'res/icons/system/more.svg')),
@@ -335,6 +347,7 @@ class SettingInterface(ScrollArea):
         self.AutonomousGroup.addSettingCard(self.AutonomousEnabledCard)
         self.AutonomousGroup.addSettingCard(self.AutonomousMinIntervalCard)
         self.AutonomousGroup.addSettingCard(self.AutonomousMaxIntervalCard)
+        self.AutonomousGroup.addSettingCard(self.AutonomousBrainCooldownCard)
         self.AutonomousGroup.addSettingCard(self.AutonomousDebugCard)
         self.AutonomousGroup.addSettingCard(self.WatchTVDebugCard)
 
@@ -442,6 +455,11 @@ class SettingInterface(ScrollArea):
         settings.save_settings()
         self._notifyAutonomousChange()
     
+    def _AutonomousBrainCooldownChanged(self, value):
+        settings.autonomous_brain_cooldown = value * 0.1
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
     def _AutonomousDebugChanged(self, isChecked):
         settings.autonomous_debug = isChecked
         settings.save_settings()
@@ -469,7 +487,8 @@ class SettingInterface(ScrollArea):
                             'min_interval_minutes': settings.autonomous_min_interval,
                             'max_interval_minutes': settings.autonomous_max_interval,
                             'debug_mode': settings.autonomous_debug,
-                            'watchtv_debug': settings.watchtv_debug
+                            'watchtv_debug': settings.watchtv_debug,
+                            'behavior_cooldown_minutes': settings.autonomous_brain_cooldown
                         }
                         module.config.update(new_config)
                         

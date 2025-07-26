@@ -204,10 +204,17 @@ class AutonomousPetModule(BaseModule):
         # 大脑设置
         if 'behavior_cooldown_minutes' in cfg:
             cooldown = cfg['behavior_cooldown_minutes']
+            old_cooldown = self.brain.min_action_interval.total_seconds() / 60 if hasattr(self.brain, 'min_action_interval') else 5.0
             self.brain.min_action_interval = timedelta(minutes=cooldown)
+            print(f"🧠 大脑冷却期已更新: {old_cooldown}分钟 → {cooldown}分钟")
         
         print(f"⚙️ 已应用配置: 自主行为={'开启' if self.autonomous_enabled else '关闭'}, "
               f"行为间隔={self.min_interval_minutes}-{self.max_interval_minutes}分钟")
+        
+        # 添加大脑冷却期到配置摘要
+        if hasattr(self.brain, 'min_action_interval'):
+            brain_cooldown = self.brain.min_action_interval.total_seconds() / 60
+            print(f"🧠 大脑冷却期: {brain_cooldown}分钟")
     
     def start_autonomous_behavior(self):
         """启动自主行为线程"""
