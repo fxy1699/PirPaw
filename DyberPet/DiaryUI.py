@@ -108,20 +108,57 @@ class DetailViewDialog(QDialog):
     def __init__(self, entry: Dict, parent=None):
         super().__init__(parent)
         self.entry = entry
-        try:
-            print(f"📖 创建详细对话框: {entry.get('title', 'Unknown')}")
-            self.setup_ui()
-            print("✅ 详细对话框创建成功")
-        except Exception as e:
-            print(f"❌ 详细对话框创建失败: {e}")
-            import traceback
-            traceback.print_exc()
+        self.text_widgets = []  # 存储需要自适应高度的文本控件
+        self.setup_ui()
+    
+    def _make_text_auto_height(self, text_edit: QTextEdit, min_height: int = 100, max_height: int = 500):
+        """为QTextEdit添加自适应高度功能"""
+        self.text_widgets.append((text_edit, min_height, max_height))
+        
+        def adjust_height():
+            try:
+                document = text_edit.document()
+                # 确保宽度计算正确
+                available_width = max(text_edit.width() - 40, 200)  # 减去padding和滚动条
+                document.setTextWidth(available_width)
+                content_height = document.size().height()
+                
+                # 计算合适的高度
+                new_height = max(min_height, min(int(content_height + 30), max_height))
+                text_edit.setFixedHeight(new_height)
+            except Exception as e:
+                print(f"调整文本高度失败: {e}")
+        
+        # 延迟调整，确保控件已经完全初始化
+        QTimer.singleShot(50, adjust_height)
+        
+        return adjust_height
+    
+    def resizeEvent(self, event):
+        """窗口大小改变时重新调整所有文本控件的高度"""
+        super().resizeEvent(event)
+        
+        # 延迟调整，确保布局已经更新
+        QTimer.singleShot(100, self._readjust_all_text_heights)
+    
+    def _readjust_all_text_heights(self):
+        """重新调整所有文本控件的高度"""
+        for text_edit, min_height, max_height in self.text_widgets:
+            try:
+                document = text_edit.document()
+                available_width = max(text_edit.width() - 40, 200)
+                document.setTextWidth(available_width)
+                content_height = document.size().height()
+                new_height = max(min_height, min(int(content_height + 30), max_height))
+                text_edit.setFixedHeight(new_height)
+            except Exception as e:
+                print(f"重新调整文本高度失败: {e}")
     
     def setup_ui(self):
         """设置UI"""
         self.setWindowTitle(f"📖 详细内容 - {self.entry['title']}")
         self.setModal(False)  # 改为非模态，允许其他窗口获得焦点
-        self.resize(800, 600)
+        self.resize(900, 700)  # 增加窗口大小，提供更好的内容显示空间
         
         # 设置窗口标志，移除置顶行为
         self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowMinMaxButtonsHint)
@@ -171,16 +208,20 @@ class DetailViewDialog(QDialog):
             self._add_ai_diary_detail(content_layout)
         else:
             # 通用内容显示
-            content_group = QGroupBox("�� 内容详情")
+            content_group = QGroupBox("📋 内容详情")
             detail_layout = QVBoxLayout(content_group)
             
             detail_text = QTextEdit()
             detail_text.setPlainText(str(self.entry.get('content', {})))
             detail_text.setReadOnly(True)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(detail_text, min_height=150, max_height=600)
+            
             detail_text.setStyleSheet("background: #fafafa; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
             detail_layout.addWidget(detail_text)
             
-            layout.addWidget(content_group)
+            content_layout.addWidget(content_group)
         
         content_scroll.setWidget(content_widget)
         layout.addWidget(content_scroll)
@@ -268,7 +309,10 @@ class DetailViewDialog(QDialog):
             user_text = QTextEdit()
             user_text.setPlainText(content['user_message'])
             user_text.setReadOnly(True)
-            user_text.setMaximumHeight(150)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(user_text, min_height=100, max_height=400)
+            
             user_text.setStyleSheet("background: #e3f2fd; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
             user_layout.addWidget(user_text)
             layout.addWidget(user_group)
@@ -279,7 +323,10 @@ class DetailViewDialog(QDialog):
             pet_text = QTextEdit()
             pet_text.setPlainText(content['pet_response'])
             pet_text.setReadOnly(True)
-            pet_text.setMaximumHeight(200)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(pet_text, min_height=120, max_height=500)
+            
             pet_text.setStyleSheet("background: #f1f8e9; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
             pet_layout.addWidget(pet_text)
             layout.addWidget(pet_group)
@@ -290,7 +337,10 @@ class DetailViewDialog(QDialog):
             func_text = QTextEdit()
             func_text.setPlainText(str(content['function_calls']))
             func_text.setReadOnly(True)
-            func_text.setMaximumHeight(100)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(func_text, min_height=80, max_height=300)
+            
             func_text.setStyleSheet("background: #fff3e0; border: 1px solid #ddd; border-radius: 4px; padding: 8px;")
             func_layout.addWidget(func_text)
             layout.addWidget(func_group)
@@ -380,7 +430,10 @@ class DetailViewDialog(QDialog):
             ai_text = QTextEdit()
             ai_text.setPlainText(ai_response)
             ai_text.setReadOnly(True)
-            ai_text.setMaximumHeight(200)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(ai_text, min_height=120, max_height=500)
+            
             ai_text.setStyleSheet("background: #e8f5e8; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-family: 'Microsoft YaHei', sans-serif;")
             ai_layout.addWidget(ai_text)
             
@@ -444,7 +497,10 @@ class DetailViewDialog(QDialog):
             diary_text = QTextEdit()
             diary_text.setPlainText(generated_content)
             diary_text.setReadOnly(True)
-            diary_text.setMaximumHeight(300)
+            
+            # 使用通用的自适应高度函数
+            self._make_text_auto_height(diary_text, min_height=150, max_height=600)
+            
             diary_text.setStyleSheet("background: #f8fff8; border: 1px solid #ddd; border-radius: 4px; padding: 12px; font-family: 'Microsoft YaHei', sans-serif; font-size: 11px; line-height: 1.6;")
             diary_layout.addWidget(diary_text)
         
