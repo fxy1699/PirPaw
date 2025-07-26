@@ -109,7 +109,19 @@ class DetailViewDialog(QDialog):
         super().__init__(parent)
         self.entry = entry
         self.text_widgets = []  # 存储需要自适应高度的文本控件
-        self.setup_ui()
+        try: 
+            print(f"📖 创建详细对话框: {entry.get('title', 'Unknown')}")
+            self.setup_ui()
+            
+            # 如果是梦境类型，标记为已告诉用户
+            if entry.get('entry_type') == 'dream':
+                self._mark_dream_as_told()
+            
+            print("✅ 详细对话框创建成功")
+        except Exception as e:
+            print(f"❌ 详细对话框创建失败: {e}")
+            import traceback
+            traceback.print_exc()
     
     def _make_text_auto_height(self, text_edit: QTextEdit, min_height: int = 100, max_height: int = 500):
         """为QTextEdit添加自适应高度功能"""
@@ -153,6 +165,28 @@ class DetailViewDialog(QDialog):
                 text_edit.setFixedHeight(new_height)
             except Exception as e:
                 print(f"重新调整文本高度失败: {e}")
+                
+    def _mark_dream_as_told(self):
+        """标记梦境为已告诉用户"""
+        try:
+            # 导入日记管理器
+            from Agent.data.diary.diary_manager import DiaryManager
+            diary_manager = DiaryManager()
+            
+            # 从 entry 中获取日期
+            content = self.entry.get('content', {})
+            if isinstance(content, str):
+                import json
+                content = json.loads(content)
+            
+            dream_date = content.get('date')
+            if dream_date:
+                # 标记梦境为已告诉用户
+                diary_manager.mark_dream_told(dream_date)
+                print(f"✅ 梦境已标记为已告诉用户: {dream_date}")
+                
+        except Exception as e:
+            print(f"⚠️ 标记梦境状态失败: {e}")
     
     def setup_ui(self):
         """设置UI"""
@@ -196,16 +230,20 @@ class DetailViewDialog(QDialog):
         content_layout = QVBoxLayout(content_widget)
         
         # 根据类型显示不同内容
-        if self.entry['entry_type'] == 'screenshot':
+        entry_type = self.entry.get('entry_type')
+        
+        if entry_type == 'screenshot':
             self._add_screenshot_detail(content_layout)
-        elif self.entry['entry_type'] == 'chat':
+        elif entry_type == 'chat':
             self._add_chat_detail(content_layout)
-        elif self.entry['entry_type'] == 'interaction':
+        elif entry_type == 'interaction':
             self._add_interaction_detail(content_layout)
-        elif self.entry['entry_type'] == 'autonomous_behavior':
+        elif entry_type == 'autonomous_behavior':
             self._add_autonomous_behavior_detail(content_layout)
         elif self.entry['entry_type'] == 'ai_diary':
             self._add_ai_diary_detail(content_layout)
+        elif entry_type == 'dream':
+            self._add_dream_detail(content_layout)  # 新增梦境详情显示
         else:
             # 通用内容显示
             content_group = QGroupBox("📋 内容详情")
@@ -482,7 +520,6 @@ class DetailViewDialog(QDialog):
                 content = json.loads(content)
             except:
                 content = {}
-        
         # 获取AI生成的日记内容
         generated_content = content.get('generated_content', '')
         original_tool_call = content.get('original_tool_call', {})
@@ -543,6 +580,41 @@ class DetailViewDialog(QDialog):
         #     response_layout.addWidget(response_text)
         #     
         #     layout.addWidget(response_group)
+    
+    def _add_dream_detail(self, layout: QVBoxLayout):
+        """添加梦境详细内容"""
+        content = self.entry.get('content', {})
+        
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+    
+        # 基本信息组
+        basic_group = QGroupBox("💭 梦境信息")
+        basic_layout = QGridLayout(basic_group)
+        
+        dream_date = content.get('date', '未知日期')
+        dream_content = content.get('dream_content', '')
+        told_user = content.get('told_user', False)
+        
+        basic_layout.addWidget(QLabel("梦境日期:"), 0, 0)
+        basic_layout.addWidget(QLabel(f"💭 {dream_date}"), 0, 1)
+        
+        basic_layout.addWidget(QLabel("状态:"), 1, 0)
+        status_text = "✅ 已告诉用户" if told_user else "⏳ 未告诉用户"
+        basic_layout.addWidget(QLabel(status_text), 1, 1)
+        
+        if dream_content:
+            basic_layout.addWidget(QLabel("梦境内容:"), 2, 0)
+            content_label = QLabel(dream_content)
+            content_label.setWordWrap(True)
+            content_label.setStyleSheet("padding: 8px; background: #f0f8ff; border-radius: 6px; font-size: 12px;")
+            basic_layout.addWidget(content_label, 2, 1)
+        
+        layout.addWidget(basic_group)
     
     def _open_image_externally(self, file_path: str):
         """用系统默认程序打开图像"""

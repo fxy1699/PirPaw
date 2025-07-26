@@ -302,6 +302,8 @@ class DiaryManager:
             print(f"❌ 添加自主行为记录失败: {e}")
             return None
     
+    # 在适当的位置添加这两个函数
+    
     def add_ai_diary_entry(self, pet_name: str, tool_call_data: Dict, ai_response: str, 
                           emotions: Dict = None, agent_core=None) -> int:
         """添加AI生成的真实日记条目"""
@@ -472,7 +474,99 @@ class DiaryManager:
         """生成日记标题"""
         time_info = self._get_time_and_weather_info()
         return f"📖 {time_info}"
-    
+
+    def add_dream_entry(self, dream_content: str, date: str = None, pet_name: str = None) -> int:
+        """添加梦境记录"""
+        try:
+            # 统一使用文件顶部导入的datetime，避免局部变量覆盖
+            if date is None:
+                date = datetime.now().strftime('%Y-%m-%d')
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # 生成标题
+                title = f"💭 梦境记录 - {date}"
+
+                # 构建详细内容
+                details = {
+                    "dream_content": dream_content,
+                    "date": date,
+                    "told_user": False,
+                    "created_at": datetime.now().isoformat()
+                }
+                content_json = json.dumps(details, ensure_ascii=False)
+                
+                # 添加日记条目
+                cursor.execute('''
+                    INSERT INTO diary_entries (entry_type, title, content, pet_name)
+                    VALUES (?, ?, ?, ?)
+                ''', ('dream', title, content_json, pet_name))
+                
+                entry_id = cursor.lastrowid
+                
+                # 同时添加到梦境数据库表
+                cursor.execute('''
+                    INSERT INTO dream_diary (date, content, told_user)
+                    VALUES (?, ?, ?)
+                ''', (date, dream_content, False))
+                
+                conn.commit()
+                print(f"✅ 梦境记录已添加: {title}")
+                return entry_id
+                
+        except Exception as e:
+            print(f"❌ 添加梦境记录失败: {e}")
+            return None
+
+    def get_log_summary_by_date(self, date):
+        """根据日期获取日志总结记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT content, told_user FROM log_summary WHERE date=?', (date,))
+            row = cursor.fetchone()
+            if row:
+                return {'content': row[0], 'told_user': bool(row[1])}
+            return None
+
+    def save_log_summary(self, date, content):
+        """保存日志总结记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO log_summary (date, content, told_user) VALUES (?, ?, 0)', (date, content))
+            conn.commit()
+
+    def get_today_dream(self) -> Optional[Dict]:
+        """获取今天的梦境记录"""
+        try:
+            from datetime import datetime
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # 查询今天的梦境记录
+                cursor.execute('''
+                    SELECT content, told_user, id
+                    FROM dream_diary 
+                    WHERE date = ?
+                ''', (today,))
+                
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'content': row[0],
+                        'told_user': bool(row[1]),
+                        'id': row[2],
+                        'date': today
+                    }
+                else:
+                    return None
+                    
+        except Exception as e:
+            print(f"❌ 获取今日梦境失败: {e}")
+            return None
+
     def get_entries(self, entry_type: str = None, limit: int = 50, offset: int = 0, 
                    start_date: datetime = None, end_date: datetime = None) -> List[Dict]:
         """获取日记条目"""
@@ -762,6 +856,37 @@ class DiaryManager:
             cursor.execute('INSERT INTO log_summary (date, content, told_user) VALUES (?, ?, 0)', (date, content))
             conn.commit()
 
+    def get_today_dream(self) -> Optional[Dict]:
+        """获取今天的梦境记录"""
+        try:
+            from datetime import datetime
+            today = datetime.now().strftime('%Y-%m-%d')
+            
+            with sqlite3.connect(self.db_path) as conn:
+                cursor = conn.cursor()
+                
+                # 查询今天的梦境记录
+                cursor.execute('''
+                    SELECT content, told_user, id
+                    FROM dream_diary 
+                    WHERE date = ?
+                ''', (today,))
+                
+                row = cursor.fetchone()
+                if row:
+                    return {
+                        'content': row[0],
+                        'told_user': bool(row[1]),
+                        'id': row[2],
+                        'date': today
+                    }
+                else:
+                    return None
+                    
+        except Exception as e:
+            print(f"❌ 获取今日梦境失败: {e}")
+            return None
+
 
 # 全局实例
 diary_manager = DiaryManager()
@@ -782,4 +907,4 @@ if __name__ == "__main__":
     stats = diary_manager.get_statistics()
     print(f"📊 统计信息: {stats}")
     
-    print("✅ 测试完成！") 
+    print("✅ 测试完成！")

@@ -400,12 +400,29 @@ class ChatModule(BaseModule):
         if any(word in message_lower for word in ['梦', '梦境', '做梦', '生成梦', '讲个梦']):
             try:
                 print(f"🌙 Function Call: 生成梦境")
-                result = self.module_registry.call_function_directly(
-                    "dreamgeneration_generate_dream", {}
-                )
-                return f"🌙 梦境生成:\n{result}"
+                
+                # 导入日记管理器
+                from Agent.data.diary.diary_manager import DiaryManager
+                diary_manager = DiaryManager()
+                
+                # 检查今天是否已经有梦境记录
+                today_dream = diary_manager.get_today_dream()
+                
+                if today_dream:
+                    # 今天已经有梦境且未告诉用户，重新描述
+                    dream_content = today_dream['content']
+                    return f"🌙 重新描述下面的梦境，内容基本保持同一性，但是表述略有区别。鉴于梦境很容易遗忘，说错一些细节也是可以的。下面是梦境原始文本:\n{dream_content}"
+                    
+                else:
+                    # 今天还没有梦境，生成新的
+                    result = self.module_registry.call_function_directly(
+                        "dreamgeneration_generate_dream", {}
+                    )
+                    return f"🌙 梦境生成:\n{result}"
+                    
             except Exception as e:
                 print(f"❌ Function Call执行失败: {e}")
+                return "抱歉，我现在无法处理梦境相关的请求。"
 
         if any(word in message_lower for word in ['工作', '总结', '工作总结']):
             try:
@@ -472,7 +489,7 @@ class ChatModule(BaseModule):
 - 对于梦境分享、故事叙述等文本内容，优先用文字回复和互动
 - 根据用户实际需求智能判断是否调用工具
 
-## 当前时间：{current_time.strftime('%Y年%m月%d日 %H:%M')}
+## 当前时间：{current_time.strftime('%Y-%m-%d %H:%M')}
 
 请根据用户的消息内容，智能判断是否需要调用工具，并提供最有帮助的回复。"""
 
@@ -690,6 +707,10 @@ class ChatModule(BaseModule):
             
             # 后处理响应
             formatted_response = self._format_response(assistant_response)
+            
+            # 判断是否是梦境生成内容，如果是则存储
+            if self._is_dream_generation_response(message, formatted_response):
+                self._store_dream_if_new(formatted_response)
             
             # 记录到日记本 - 修复function_calls参数
             function_calls = function_result if function_result else []
@@ -994,3 +1015,58 @@ class ChatModule(BaseModule):
 记住：你是一个贴心的桌面伙伴，既能提供专业服务，又要保持可爱的宠物性格！"""
 
         return system_message 
+
+    def _get_current_pet_name(self) -> str:
+        """获取当前宠物名称"""
+        try:
+            # 尝试从各种可能的来源获取宠物名称
+            if hasattr(self, 'agent_core') and self.agent_core:
+                pet_module = self.agent_core.get_module('petaction')
+                if pet_module and hasattr(pet_module, 'current_pet_name'):
+                    return pet_module.current_pet_name
+            
+            # 默认返回
+            return "宠物"
+        except:
+            return "宠物" 
+
+    def _is_dream_generation_response(self, message: str, response: str) -> bool:
+        """判断是否是梦境生成响应"""
+        # 检查用户消息是否包含梦境相关关键词
+        dream_keywords = ['梦', '梦境', '做梦', '生成梦', '讲个梦']
+        message_lower = message.lower()
+        
+        is_dream_request = any(word in message_lower for word in dream_keywords)
+        
+        # 检查响应是否包含梦境相关内容
+        response_lower = response.lower()
+        dream_response_indicators = ['梦', '梦见', '梦境', '做梦']
+        is_dream_response = any(indicator in response_lower for indicator in dream_response_indicators)
+        
+        return is_dream_request  # 这里的判断和生成梦境的判断保持一致
+    
+    def _store_dream_if_new(self, dream_content: str):
+        """如果是新梦境则存储"""
+        try:
+            from Agent.data.diary.diary_manager import DiaryManager
+            diary_manager = DiaryManager()
+            
+            # 检查今天是否已经有梦境记录
+            today_dream = diary_manager.get_today_dream()
+            
+            # 只有在今天没有梦境记录时才存储
+            if not today_dream:
+                from datetime import datetime
+                today = datetime.now().strftime('%Y-%m-%d')
+                
+                diary_manager.add_dream_entry(
+                    dream_content=dream_content,
+                    date=today,
+                    pet_name=self._get_current_pet_name()
+                )
+                print(f"✅ 新梦境已存储到日记: {today}")
+            else:
+                print(f"ℹ️ 今天已有梦境记录，跳过存储")
+                
+        except Exception as e:
+            print(f"❌ 存储梦境失败: {e}") 
