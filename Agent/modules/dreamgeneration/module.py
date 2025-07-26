@@ -127,13 +127,13 @@ class DreamGenerationModule(BaseModule):
         
         # 随机选择提醒话语
         reminder_messages = [
-            "你昨天睡得怎么样呀？我昨天做了一个梦，我刚刚写在日记里了，吓死我了差点就忘了",
-            "诶，我想起来了！我昨晚做了一个很奇怪的梦，已经记在日记本里了，你要不要看看？",
-            "对了对了，我昨晚做梦了！刚才整理日记的时候想起来了，差点就忘了告诉你",
-            "我昨晚做了一个梦，现在才想起来要跟你说，已经写在日记里了，你要看看吗？",
-            "突然想起来，我昨晚做了个梦，刚才整理日记的时候记起来了，差点就忘了",
-            "我昨晚的梦好有意思，刚才写日记的时候想起来了，你要不要听听看？",
-            "诶，我昨晚做梦了！刚才翻日记本的时候想起来了，差点就忘了跟你说"
+            "船员，你昨天睡得怎么样呀？本船长昨晚做了一个梦，刚刚写在航海日志里了，差点就忘了告诉你这个重要发现！",
+            "诶，我想起来了！船员，本船长昨晚做了一个很奇怪的梦，已经记在航海日志里了，你要不要看看船长大人的冒险故事？",
+            "对了对了，船员！本船长昨晚做梦了！刚才整理航海日志的时候想起来了，差点就忘了告诉你这个精彩经历~",
+            "船员，本船长昨晚做了一个梦，现在才想起来要跟你说，已经写在航海日志里了，你要看看船长大人的梦境冒险吗？",
+            "突然想起来，船员！本船长昨晚做了个梦，刚才整理航海日志的时候记起来了，差点就忘了分享这个奇妙经历~",
+            "船员，本船长昨晚的梦好有意思，刚才写航海日志的时候想起来了，你要不要听听船长大人的梦境冒险？",
+            "诶，船员！本船长昨晚做梦了！刚才翻航海日志的时候想起来了，差点就忘了跟你说这个精彩故事~"
         ]
         
         selected_message = random.choice(reminder_messages)
@@ -199,11 +199,11 @@ class DreamGenerationModule(BaseModule):
             if has_today_dream:
                 # 发送梦境提醒
                 reminder_messages = [
-                    "我昨晚做了一个梦，已经写在日记里了，你要不要看看？",
-                    "诶，我昨晚做梦了！已经记在日记本里了，你要听听吗？",
-                    "我昨晚做了个很奇怪的梦，已经写在日记里了，你要看看吗？",
-                    "我昨晚做梦了，已经记在日记本里了，差点就忘了告诉你",
-                    "我昨晚做了个梦，现在写在日记里了，你要不要看看？"
+                    "船员，本船长昨晚做了一个梦，已经写在航海日志里了，你要不要看看船长大人的冒险故事？",
+                    "诶，船员！本船长昨晚做梦了！已经记在航海日志里了，你要听听船长大人的精彩经历吗？",
+                    "船员，本船长昨晚做了个很奇怪的梦，已经写在航海日志里了，你要看看船长大人的梦境冒险吗？",
+                    "船员，本船长昨晚做梦了，已经记在航海日志里了，差点就忘了告诉你这个奇妙经历~",
+                    "船员，本船长昨晚做了个梦，现在写在航海日志里了，你要不要看看船长大人的梦境故事？"
                 ]
                 
                 selected_message = random.choice(reminder_messages)
@@ -253,9 +253,9 @@ class DreamGenerationModule(BaseModule):
                 pet_module = self.agent_core.get_module('petaction')
                 if pet_module and hasattr(pet_module, 'current_pet_name'):
                     return pet_module.current_pet_name
-            return "宠物"
+            return "船长索霖"
         except:
-            return "宠物"
+            return "船长索霖"
     
     def cleanup(self):
         """清理资源"""
@@ -370,7 +370,7 @@ class DreamGenerationModule(BaseModule):
     def _init_agent_service(self):
         try:
             llm_cfg = {'model': 'qwen-max'}
-            system = '你扮演一个梦境文本生成助手，能够根据用户提供的心情关键词，创作一段有画面感的梦境场景或故事。梦境应富有想象力、细节丰富、情感饱满。'
+            system = '你扮演船长索霖的梦境生成助手，能够根据小熊猫船长的心情关键词，创作一段有画面感的梦境场景或故事。梦境应富有想象力、细节丰富、情感饱满，体现船长索霖的冒险精神和内心阳光。'
             bot = Assistant(
                 llm=llm_cfg,
                 name='梦境生成助手',
@@ -395,18 +395,18 @@ class DreamGenerationModule(BaseModule):
             return self._generate_dream(keywords)
         except Exception as e:
             print(f"❌ 梦境生成处理失败: {e}")
-            return "抱歉，梦境生成功能暂时不可用。"
+            return "船员，抱歉，船长大人的梦境生成功能暂时不可用，遇到了一些技术问题~"
 
     def get_capabilities(self) -> list:
         return [
-            "根据关键词生成梦境文本"
+            "根据船长索霖的心情关键词生成富有想象力的梦境文本"
         ]
 
     def get_function_definitions(self) -> list:
         return [
             {
                 "name": "generate_dream",
-                "description": "根据随机的关键词生成梦境文本",
+                "description": "根据船长索霖的心情关键词生成梦境文本",
                 "parameters": []
             }
         ]
@@ -417,7 +417,7 @@ class DreamGenerationModule(BaseModule):
             keywords = self._get_emotion_keywords()
             return self._generate_dream(keywords)
         else:
-            raise ValueError(f"未知的功能: {function_name}")
+            raise ValueError(f"船员，未知的功能: {function_name}，船长大人暂时无法执行这个指令~")
 
     def _generate_dream(self, keywords: list) -> str:
         """
@@ -432,8 +432,8 @@ class DreamGenerationModule(BaseModule):
         #     return self._generate_simple_dream(keywords_str)
         
         prompt = (
-            f"请以以下心情为主题，创作一段有画面感的梦境场景或故事，要求细节丰富、情感饱满，富有想象力。\n"
-            f"要求以第一人称描述，以跟朋友讲故事的口吻叙述。200字左右。仅描述梦境，不要透露有关提示词的内容。"
+            f"请以船长索霖的身份，以以下心情为主题，创作一段有画面感的梦境场景或故事，要求细节丰富、情感饱满，富有想象力。\n"
+            f"要求以第一人称描述，以船长跟船员讲故事的口吻叙述，体现小熊猫船长的冒险精神和内心阳光。200字左右。仅描述梦境，不要透露有关提示词的内容。"
             f"心情关键词：{keywords_str}\n"
             f"梦境："
         )
@@ -455,9 +455,9 @@ class DreamGenerationModule(BaseModule):
         """简化模式：生成基础梦境文本"""
         # 预定义的梦境模板
         dream_templates = [
-            f"那天晚上，我做了一个梦。梦中我身处于一个充满{keywords_str}氛围的世界里。四周的景象让我感到深深的情感共鸣，仿佛整个世界都在诉说着内心的故事。",
-            f"在梦里，我经历了一段奇妙的旅程。{keywords_str}的情绪如影随形，让我在梦境中体验到了前所未有的感受。",
-            f"我做了一个关于{keywords_str}的梦。梦中的场景如此真实，让我醒来后仍然沉浸在那份独特的情感中。"
+          f"那天晚上，本船长做了一个梦。梦中我置身于一个充满{keywords_str}氛围的世界里，就像在探索新大陆一样。四周的景象让我感到深深的情感共鸣，仿佛整个世界都在诉说着内心的故事。船员，船长大人的梦境可是很有深度的！",
+            f"在梦里，本船长经历了一段奇妙的旅程。{keywords_str}的情绪如影随形，让我在梦境中体验到了前所未有的感受。就像在海上冒险一样刺激！",
+            f"本船长做了一个关于{keywords_str}的梦。梦中的场景如此真实，让我醒来后仍然沉浸在那份独特的情感中。船员，船长大人连做梦都在冒险呢！"
         ]
         
         import random

@@ -66,22 +66,22 @@ class ToolsModule(BaseModule):
             now = datetime.datetime.now()
             weekday = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'][now.weekday()]
             
-            time_str = f"⏰ 现在时间: {now.strftime('%Y年%m月%d日')} {weekday} {now.strftime('%H:%M:%S')}"
+            time_str = f"⏰ 船员，现在时间: {now.strftime('%Y年%m月%d日')} {weekday} {now.strftime('%H:%M:%S')}"
             
             # 添加一些额外信息
             if now.hour < 6:
-                time_str += "\n🌙 深夜了，注意休息"
+                time_str += "\n🌙 深夜了，船员！船长大人命令你注意休息~"
             elif now.hour < 12:
-                time_str += "\n🌅 上午好！"
+                time_str += "\n🌅 上午好，船员！本船长祝你今天工作顺利！"
             elif now.hour < 18:
-                time_str += "\n☀️ 下午好！"
+                time_str += "\n☀️ 下午好，伙伴！船长大人为你加油！"
             else:
-                time_str += "\n🌆 晚上好！"
+                time_str += "\n🌆 晚上好，船员！今天辛苦了~"
                 
             return time_str
             
         except Exception as e:
-            return f"⏰ 获取时间失败: {e}"
+            return f"⏰ 获取时间失败: {e} 船员，船长大人的时间观念暂时出了点小问题~"
     
     def get_weather_info(self, message):
         """获取天气信息 - 提示用户使用Chat模块的天气功能"""
@@ -95,8 +95,8 @@ class ToolsModule(BaseModule):
                     break
             
             # 提示用户使用更准确的天气功能
-            weather_info = f"🌤️ {city}天气查询:\n"
-            weather_info += "💡 为了获取最准确的天气信息，建议您:\n"
+            weather_info = f"🌤️ {city}天气查询，船员:\n"
+            weather_info += "💡 为了获取最准确的天气信息，船长大人建议您:\n"
             weather_info += "• 使用Chat模块询问天气（如: '北京天气怎么样？'）\n"
             weather_info += "• Chat模块已集成高德天气API，提供实时准确数据\n"
             weather_info += "\n🔄 工具模块将保留基础功能，Chat模块提供增强体验"
@@ -147,7 +147,7 @@ class ToolsModule(BaseModule):
             return info
             
         except Exception as e:
-            return f"💻 获取系统信息失败: {e}"
+            return f"💻 获取系统信息失败: {e} 船员，船长大人遇到了一些技术问题~"
     
     def handle_file_operations(self, message):
         """处理文件操作"""
@@ -160,15 +160,15 @@ class ToolsModule(BaseModule):
                 return self.get_file_info()
                 
         except Exception as e:
-            return f"📁 文件操作失败: {e}"
+            return f"📁 文件操作失败: {e} 船员，船长大人遇到了一些技术问题~"
     
     def open_file_dialog(self, message):
         """打开文件对话框（模拟）"""
-        return "📁 文件操作功能:\n• 可以通过右键菜单访问文件管理功能\n• 支持快速打开常用文件夹\n• 支持文件搜索和管理"
+        return "📁 船员，这是文件操作功能:\n• 可以通过右键菜单访问文件管理功能\n• 支持快速打开常用文件夹\n• 支持文件搜索和管理\n船长大人随时帮你管理文件~"
     
     def search_files(self, message):
         """搜索文件"""
-        return "🔍 文件搜索功能:\n• 支持按文件名搜索\n• 支持按文件类型筛选\n• 支持按修改时间排序\n💡 具体搜索功能请使用系统文件管理器"
+        return "🔍 船员，这是文件搜索功能:\n• 支持按文件名搜索\n• 支持按文件类型筛选\n• 支持按修改时间排序\n💡 具体搜索功能请使用系统文件管理器\n船长大人随时帮你查找文件~"
     
     def get_file_info(self):
         """获取文件信息"""
@@ -176,19 +176,19 @@ class ToolsModule(BaseModule):
             home_dir = os.path.expanduser("~")
             desktop_dir = os.path.join(home_dir, "Desktop")
             
-            info = "📁 常用文件夹:\n"
+            info = "📁 船员，这是常用文件夹:\n"
             if os.path.exists(desktop_dir):
                 desktop_files = len([f for f in os.listdir(desktop_dir) 
                                    if os.path.isfile(os.path.join(desktop_dir, f))])
                 info += f"• 桌面: {desktop_files} 个文件\n"
             
             info += f"• 用户目录: {home_dir}\n"
-            info += "💡 可以通过具体指令管理文件"
+            info += "💡 可以通过具体指令管理文件\n船长大人随时帮你管理文件~"
             
             return info
             
         except Exception as e:
-            return f"📁 文件信息获取失败: {e}"
+            return f"📁 文件信息获取失败: {e} 船员，船长大人遇到了一些技术问题~"
     
     def get_capabilities(self):
         """返回工具能力"""

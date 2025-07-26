@@ -27,7 +27,7 @@ class CameraModule(BaseModule):
         try:
             from qwen_agent.agents import Assistant
             llm_cfg = {'model': 'qwen-vl-plus'}
-            system = '你是一个人体姿态分析AI助手，用户会上传一张包含人物的照片，请你用简洁的语言分析照片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势。'
+            system = '你是船长索霖的健康顾问，用户会上传一张包含人物的照片，请你用简洁的语言分析照片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势。用船长关心船员的口吻给出建议。'
             bot = Assistant(
                 llm=llm_cfg,
                 name='AI姿态分析助手',
@@ -59,7 +59,7 @@ class CameraModule(BaseModule):
                     "role": "user",
                     "content": [
                         {"image": image_url},
-                        {"text": "请分析这张图片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势"}
+                        {"text": "请以船长索霖的身份，分析这张图片中人物的坐姿、头部、肩膀、背部、与屏幕的距离等健康相关姿势，用关心船员的口吻给出建议"}
                     ]
                 }
             ]
@@ -71,7 +71,7 @@ class CameraModule(BaseModule):
             else:
                 return '[未获得姿态分析结果]'
         except Exception as e:
-            return f"[姿态分析失败: {e}]"
+            return f"[姿态分析失败: {e}] 船员，船长大人的健康顾问暂时遇到了一些技术问题~"
 
     def setup(self, config=None):
         """初始化摄像头功能"""
@@ -118,7 +118,7 @@ class CameraModule(BaseModule):
         """处理摄像头相关请求"""
         if not self.enabled:
             if self.config.get('privacy_mode', True):
-                return "🔒 摄像头功能处于隐私保护模式，请在设置中启用"
+                return "🔒 船员，摄像头功能处于隐私保护模式，船长大人需要你的授权才能启用健康监控哦~"
             return None
         
         # 判断是否是摄像头相关请求

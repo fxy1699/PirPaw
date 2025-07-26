@@ -153,7 +153,7 @@ class PetActionModule(BaseModule):
             
             # 确保有可用的宠物
             if not self.current_pet_info:
-                return "❌ 当前没有检测到可用的宠物，请确保DyberPet正在运行"
+                return "❌ 船员，当前没有检测到可用的宠物，船长大人需要确保DyberPet正在运行~"
             
             # 将消息映射到动作
             action_results = self._map_message_to_actions(message, context)
@@ -162,9 +162,9 @@ class PetActionModule(BaseModule):
                 # 提供更有用的建议
                 available_actions = list(self.current_pet_info.get("actions", {}).keys())[:5]
                 if available_actions:
-                    return f"🤔 抱歉，我没能理解您想要执行什么动作。当前宠物{self.current_pet_name}支持：{', '.join(available_actions)}等动作"
+                    return f"🤔 船员，抱歉，船长大人没能理解您想要执行什么动作。当前宠物{self.current_pet_name}支持：{', '.join(available_actions)}等动作"
                 else:
-                    return "🤔 抱歉，我没能理解您想要执行什么动作。您可以尝试说'让小猫睡觉'、'走路'、'站立'等"
+                    return "🤔 船员，抱歉，船长大人没能理解您想要执行什么动作。您可以尝试说'让小猫睡觉'、'走路'、'站立'等"
             
             # 执行最佳匹配的动作
             best_action = action_results[0]
@@ -181,7 +181,7 @@ class PetActionModule(BaseModule):
             
         except Exception as e:
             print(f"❌ 处理动作请求失败: {e}")
-            return f"❌ 处理动作请求时出现错误: {e}"
+            return f"❌ 处理动作请求时出现错误: {e} 船员，船长大人遇到了一些技术问题~"
     
     def _scan_available_pets(self):
         """扫描可用的宠物"""
@@ -445,19 +445,21 @@ class PetActionModule(BaseModule):
         """处理状态查询请求"""
         if "状态" in message or "信息" in message or "现在" in message:
             if not self.current_pet_info:
-                return "❌ 当前没有活跃的宠物"
+                return "❌ 船员，当前没有活跃的宠物，船长大人需要先启动宠物系统~"
             
             pet_status = self._get_pet_status()
             capabilities = self.get_capabilities()
             
-            status_text = f"""🐾 当前宠物信息:
+            status_text = f"""🐾 船员，这是当前宠物信息:
 📛 名称: {self.current_pet_name}
 ❤️ 血量: {pet_status['hp']}%
 💖 好感度: {pet_status['fv']}%
 🎭 当前动作: {pet_status.get('current_action', '未知')}
 
 🎯 可用能力:
-{chr(10).join(f'• {cap}' for cap in capabilities[:5])}"""
+{chr(10).join(f'• {cap}' for cap in capabilities[:5])}
+
+船员，船长大人随时关注宠物的状态~"""
             
             return status_text
         
@@ -504,24 +506,26 @@ class PetActionModule(BaseModule):
         
         if any(keyword in message for keyword in capability_keywords):
             if not self.current_pet_info:
-                return "❌ 当前没有活跃的宠物"
+                return "❌ 船员，当前没有活跃的宠物，船长大人需要先启动宠物系统~"
             
             actions = self.current_pet_info.get("actions", {})
             basic_actions = list(self.current_pet_info.get("basic_actions", {}).values())
             random_actions = [act.get("name", "未命名") for act in self.current_pet_info.get("random_actions", [])]
             
-            capability_text = f"""🎯 当前宠物 {self.current_pet_name} 支持以下动作:
+            capability_text = f"""🎯 船员，当前宠物 {self.current_pet_name} 支持以下动作:
 
 📋 基础动作: {', '.join(basic_actions[:8])}
 🎲 随机动作组: {', '.join(random_actions[:5])}
 🎭 全部动作: {', '.join(list(actions.keys())[:10])}
 
-💡 您可以说：
+💡 船员，您可以说：
 • "站立" / "default" - 默认姿态
 • "向左" / "left" - 向左移动  
 • "向右" / "right" - 向右移动
 • "拖拽" / "drag" - 拖拽动作
-• "下落" / "fall" - 下落动作"""
+• "下落" / "fall" - 下落动作
+
+船长大人随时准备执行您的指令~"""
             
             return capability_text
         

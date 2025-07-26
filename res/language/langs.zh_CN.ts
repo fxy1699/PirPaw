@@ -323,12 +323,12 @@ For most of time, App can import the character for you automatically. But in any
     <message>
         <location filename="../../DyberPet/Notification.py" line="265"/>
         <source>Your pet is starving! (Favor point starts decreasing)</source>
-        <translation>宠物要饿死啦！(好感度开始下降)</translation>
+        <translation>船员，船长大人要饿死啦！(好感度开始下降)</translation>
     </message>
     <message>
         <location filename="../../DyberPet/Notification.py" line="267"/>
         <source>Your pet is hungry now~ (Favor point stops increasing)</source>
-        <translation>宠物现在很饿哦~（好感度停止增加）</translation>
+        <translation>船员，船长大人现在很饿哦~（好感度停止增加）</translation>
     </message>
     <message>
         <location filename="../../DyberPet/Notification.py" line="273"/>
@@ -975,22 +975,22 @@ Please load previous saved data to recover.</source>
     <message>
         <location filename="../../DyberPet/modules.py" line="760"/>
         <source>Good Morning!</source>
-        <translation>早上好！</translation>
+        <translation>早上好，船员！新的一天开始了，本船长祝你今天工作顺利！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="764"/>
         <source>Good Afternoon!</source>
-        <translation>下午好！</translation>
+        <translation>下午好，船员！本船长继续为你保驾护航！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="766"/>
         <source>Good Evening!</source>
-        <translation>晚上好！</translation>
+        <translation>晚上好，船员！本船长陪你度过美好的夜晚！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="770"/>
         <source>Time to sleep!</source>
-        <translation>该睡觉啦！</translation>
+        <translation>船员，该睡觉啦！本船长也要休息了，明天继续冒险！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="719"/>
@@ -1000,27 +1000,27 @@ Please load previous saved data to recover.</source>
     <message>
         <location filename="../../DyberPet/modules.py" line="720"/>
         <source>The new Pomodoro has started! Let's go!</source>
-        <translation>新的番茄钟开始了！加油！</translation>
+        <translation>船员，新的番茄钟开始了！本船长为你加油！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="721"/>
         <source> Pomodoros have been set! Let's dive in!</source>
-        <translation> 个番茄钟设定完毕！让我们开始吧！</translation>
+        <translation> 个番茄钟设定完毕！船员，让我们开始冒险吧！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="722"/>
         <source>Ding ding~ Pomodoro finished! Time for a 5-minute break!</source>
-        <translation>叮叮~ 本轮番茄钟完成啦！休息5分钟吧！</translation>
+        <translation>叮叮~ 船员，本轮番茄钟完成啦！本船长命令你休息5分钟！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="723"/>
         <source>Ding ding~ All Pomodoros completed! Great job!</source>
-        <translation>叮叮~ 所有番茄钟都完成啦！好欸！</translation>
+        <translation>叮叮~ 船员，所有番茄钟都完成啦！本船长为你感到骄傲！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="724"/>
         <source>Your Pomodoros have all been canceled!</source>
-        <translation>番茄钟已全部取消！</translation>
+        <translation>船员，番茄钟已全部取消！本船长暂时放过你了~</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="726"/>
@@ -1030,17 +1030,17 @@ Please load previous saved data to recover.</source>
     <message>
         <location filename="../../DyberPet/modules.py" line="727"/>
         <source>Your focus session has started!</source>
-        <translation>你的专注时段开始啦！</translation>
+        <translation>船员，你的专注时段开始啦！本船长为你保驾护航！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="728"/>
         <source>Your focus session has completed!</source>
-        <translation>你的专注时段结束啦！</translation>
+        <translation>船员，你的专注时段结束啦！本船长为你感到骄傲！</translation>
     </message>
     <message>
         <location filename="../../DyberPet/modules.py" line="729"/>
         <source>Your focus session has been canceled!</source>
-        <translation>你的专注时段取消啦！</translation>
+        <translation>船员，你的专注时段取消啦！本船长暂时放过你了~</translation>
     </message>
 </context>
 <context>

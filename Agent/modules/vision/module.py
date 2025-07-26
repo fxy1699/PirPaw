@@ -35,22 +35,22 @@ class VisionModule(BaseModule):
 
             # 注册全局快捷键（Ctrl+Alt+S）- 使用 pynput 替代 keyboard
             try:
-                import threading
-                from pynput import keyboard as pynput_keyboard  # pip install pynput
-                def on_activate():
-                    screenshot = self.capture_screen()
-                    if screenshot:
-                        print("📸 快捷键截图已保存！")
-                    else:
-                        print("❌ 快捷键截图失败！")
-                def start_hotkey():
-                    # 监听 F1
-                    with pynput_keyboard.GlobalHotKeys({
-                        '<f1>': on_activate
-                    }) as h:
-                        h.join()
-                self._hotkey_listener = threading.Thread(target=start_hotkey, daemon=True)
-                self._hotkey_listener.start()
+                # import threading
+                # from pynput import keyboard as pynput_keyboard  # pip install pynput
+                # def on_activate():
+                #     screenshot = self.capture_screen()
+                #     if screenshot:
+                #         print("📸 快捷键截图已保存！")
+                #     else:
+                #         print("❌ 快捷键截图失败！")
+                # def start_hotkey():
+                #     # 监听 F1
+                #     with pynput_keyboard.GlobalHotKeys({
+                #         '<f1>': on_activate
+                #     }) as h:
+                #         h.join()
+                # self._hotkey_listener = threading.Thread(target=start_hotkey, daemon=True)
+                # self._hotkey_listener.start()
                 print("💡 已注册截图快捷键 F1 (pynput)")
             except Exception as e:
                 print(f"⚠️ 快捷键注册失败: {e}")
@@ -89,11 +89,11 @@ class VisionModule(BaseModule):
             # 简单分析
             analysis_result = self.analyze_screenshot(screenshot, message)
             
-            return f"👁️ {analysis_result}"
+            return f"👁️ 船员，{analysis_result} 船长大人的观察力可是很强的~"
             
         except Exception as e:
             print(f"❌ 视觉处理失败: {e}")
-            return f"👁️ 屏幕分析遇到问题: {str(e)}"
+            return f"👁️ 屏幕分析遇到问题: {str(e)} 船员，船长大人遇到了一些技术问题~"
     
     def capture_screen(self, region=None):
         """截取屏幕并保存到screenshots文件夹"""
