@@ -33,6 +33,16 @@ PROJECT_URL = "https://github.com/ChaozhongLiu/DyberPet"
 DEVDOC_URL = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/art_dev.md"
 VERSION = "v0.6.7"
 AUTHOR = "https://github.com/ChaozhongLiu"
+
+# Agent自主宠物设置 - 模块级变量声明 ===================================
+autonomous_enabled = False
+autonomous_min_interval = 0.1
+autonomous_max_interval = 0.5  
+autonomous_debug = False
+watchtv_debug = False
+autonomous_brain_cooldown = 5.0
+#=============================================================================
+
 CHARCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/collection.md"
 ITEMCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/collection.md"
 PETCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/collection.md"
@@ -316,7 +326,7 @@ def init_settings():
         #=====================================================
         
         # Agent自主宠物 settings ===============================
-        autonomous_enabled = data_params.get('autonomous_enabled', True)
+        autonomous_enabled = data_params.get('autonomous_enabled', False)
         autonomous_min_interval = data_params.get('autonomous_min_interval', 0.1)
         autonomous_max_interval = data_params.get('autonomous_max_interval', 0.5)
         autonomous_debug = data_params.get('autonomous_debug', False)
@@ -346,7 +356,7 @@ def init_settings():
         auto_lock = False
         
         # Agent自主宠物默认设置
-        autonomous_enabled = True
+        autonomous_enabled = False
         autonomous_min_interval = 0.1
         autonomous_max_interval = 0.5
         autonomous_debug = False

@@ -762,6 +762,11 @@ class ChatModule(BaseModule):
     def _add_chat_to_diary(self, user_message: str, pet_response: str, function_calls: list):
         """添加聊天记录到日记本"""
         try:
+            # 过滤掉日记生成过程的对话
+            if self._is_diary_generation_message(user_message):
+                print(f"🚫 跳过日记生成过程的对话记录")
+                return
+                
             import os
             import sys
             
@@ -781,6 +786,22 @@ class ChatModule(BaseModule):
             print(f"✅ 聊天记录已添加到日记本")
         except Exception as e:
             print(f"⚠️ 添加聊天记录到日记本失败: {e}")
+    
+    def _is_diary_generation_message(self, message: str) -> bool:
+        """判断是否是日记生成过程的消息"""
+        diary_keywords = [
+            "请根据以下信息，写一篇",
+            "写一篇日记",
+            "生成日记",
+            "日记内容",
+            "根据工具调用结果",
+            "像真实日记一样"
+        ]
+        
+        for keyword in diary_keywords:
+            if keyword in message:
+                return True
+        return False
     
     def get_conversation_summary(self):
         """获取对话摘要"""

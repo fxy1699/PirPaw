@@ -62,7 +62,7 @@ class AutonomousPetModule(BaseModule):
         self.debug_running = False
         
         # 配置
-        self.autonomous_enabled = True
+        self.autonomous_enabled = False
         self.min_interval_minutes = 5
         self.max_interval_minutes = 30
         
@@ -73,18 +73,30 @@ class AutonomousPetModule(BaseModule):
         super().setup(config)
         
         # 从配置中获取设置
-        self.autonomous_enabled = config.get('autonomous_enabled', True)
-        self.min_interval_minutes = config.get('min_interval_minutes', 1)
-        self.max_interval_minutes = config.get('max_interval_minutes', 5)
-        self.debug_mode = config.get('debug_mode', False)
+        # 优先从DyberPet的settings读取（用户设置），然后是Agent的config
+        try:
+            import DyberPet.settings as dyber_settings
+            self.autonomous_enabled = getattr(dyber_settings, 'autonomous_enabled', config.get('autonomous_enabled', False))
+            self.min_interval_minutes = getattr(dyber_settings, 'autonomous_min_interval', config.get('min_interval_minutes', 1))
+            self.max_interval_minutes = getattr(dyber_settings, 'autonomous_max_interval', config.get('max_interval_minutes', 5))
+            self.debug_mode = getattr(dyber_settings, 'autonomous_debug', config.get('debug_mode', False))
+            print(f"🔗 配置来源: DyberPet设置 (autonomous_enabled={self.autonomous_enabled})")
+        except Exception as e:
+            print(f"⚠️ 无法读取DyberPet设置，使用Agent配置: {e}")
+            self.autonomous_enabled = config.get('autonomous_enabled', False)
+            self.min_interval_minutes = config.get('min_interval_minutes', 1)
+            self.max_interval_minutes = config.get('max_interval_minutes', 5)
+            self.debug_mode = config.get('debug_mode', False)
+            print(f"🔗 配置来源: Agent配置 (autonomous_enabled={self.autonomous_enabled})")
         
-        print(f"🔧 自主宠物配置:")
+        print(f"🔧 {self.name}配置:")
         print(f"   启用状态: {self.autonomous_enabled}")
         print(f"   思考间隔: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
         print(f"   调试模式: {self.debug_mode}")
         
+        # 如果禁用，直接返回
         if not self.autonomous_enabled:
-            print("💤 自主宠物功能已禁用")
+            print("💤 自主宠物功能已禁用，如需启用请在设置中打开")
             self.initialized = False
             return
         
@@ -160,11 +172,11 @@ class AutonomousPetModule(BaseModule):
             self.stop_debug_monitor()
         
         # 自主行为设置
-        old_enabled = getattr(self, 'autonomous_enabled', True)
+        old_enabled = getattr(self, 'autonomous_enabled', False)
         old_min = getattr(self, 'min_interval_minutes', 5)
         old_max = getattr(self, 'max_interval_minutes', 30)
         
-        self.autonomous_enabled = cfg.get('autonomous_enabled', True)
+        self.autonomous_enabled = cfg.get('autonomous_enabled', False)
         self.min_interval_minutes = cfg.get('min_interval_minutes', 5)
         self.max_interval_minutes = cfg.get('max_interval_minutes', 30)
         

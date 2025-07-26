@@ -9,7 +9,7 @@
   "module_configs": {
     "chat": {
       "qwen_api_key": "sk-2677250bb83f44d781f22ac0805eb0a6",
-      "model": "qwen-plus",
+      "model": "qwen-turbo",
       "enable_thinking": true,
       "max_tokens": 2000,
       "max_conversation_history": 20,
@@ -56,7 +56,7 @@
     },
     "dreamgeneration": {
       "enabled": true,
-      "model": "qwen-plus",
+      "model": "qwen-turbo",
       "max_tokens": 2000,
       "max_conversation_history": 20,
       "max_exec_steps": 10,
@@ -69,10 +69,10 @@
       "personality": "看电视检测助手"
     },
     "autonomouspet": {
-      "autonomous_enabled": true,
+      "autonomous_enabled": false,
       "min_interval_minutes": 1,
       "max_interval_minutes": 5,
-      "debug_mode": true
+      "debug_mode": false
     }
   }
 } 

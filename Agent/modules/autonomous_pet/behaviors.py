@@ -144,10 +144,12 @@ class BehaviorExecutor:
         if self.agent_core:
             print("✅ Agent核心已连接，使用真实工具调用")
             result = self._call_real_tool(tool, reason)
+            print(f"🔍 [DEBUG] _call_real_tool返回结果: {result}")
         else:
             # 降级到模拟工具调用
             print("⚠️ Agent核心未连接，使用模拟工具调用")
-        result = self._simulate_tool_call(tool)
+            result = self._simulate_tool_call(tool)
+            print(f"🔍 [DEBUG] _simulate_tool_call返回结果: {result}")
         
         # Debug: 显示完整的工具调用结果
         print(f"🔍 [DEBUG] 工具调用完整结果:")
@@ -516,6 +518,10 @@ class BehaviorExecutor:
             'generate_dream': {
                 'success': True,
                 'data': "生成了一个关于彩虹和云朵的美好梦境"
+            },
+            'get_usage_stats': {
+                'success': True,
+                'data': "📊 模拟使用统计：今天使用了多个应用程序"
             }
         }
         

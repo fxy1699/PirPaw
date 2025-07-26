@@ -1,5 +1,5 @@
 {
-  "autonomous_enabled": true,
+  "autonomous_enabled": false,
   "min_interval_minutes": 3,
   "max_interval_minutes": 15,
   "behavior_cooldown_minutes": 2,
