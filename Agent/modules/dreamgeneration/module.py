@@ -127,13 +127,13 @@ class DreamGenerationModule(BaseModule):
         
         # 随机选择提醒话语
         reminder_messages = [
-            "你昨天睡得怎么样呀？我昨天做了一个梦，我刚刚写在日记里了，吓死我了差点就忘了",
-            "诶，我想起来了！我昨晚做了一个很奇怪的梦，已经记在日记本里了，你要不要看看？",
-            "对了对了，我昨晚做梦了！刚才整理日记的时候想起来了，差点就忘了告诉你",
-            "我昨晚做了一个梦，现在才想起来要跟你说，已经写在日记里了，你要看看吗？",
-            "突然想起来，我昨晚做了个梦，刚才整理日记的时候记起来了，差点就忘了",
-            "我昨晚的梦好有意思，刚才写日记的时候想起来了，你要不要听听看？",
-            "诶，我昨晚做梦了！刚才翻日记本的时候想起来了，差点就忘了跟你说"
+            "船员，你昨天睡得怎么样呀？本船长昨晚做了一个梦，刚刚写在航海日志里了，差点就忘了告诉你这个重要发现！",
+            "诶，我想起来了！船员，本船长昨晚做了一个很奇怪的梦，已经记在航海日志里了，你要不要看看船长大人的冒险故事？",
+            "对了对了，船员！本船长昨晚做梦了！刚才整理航海日志的时候想起来了，差点就忘了告诉你这个精彩经历~",
+            "船员，本船长昨晚做了一个梦，现在才想起来要跟你说，已经写在航海日志里了，你要看看船长大人的梦境冒险吗？",
+            "突然想起来，船员！本船长昨晚做了个梦，刚才整理航海日志的时候记起来了，差点就忘了分享这个奇妙经历~",
+            "船员，本船长昨晚的梦好有意思，刚才写航海日志的时候想起来了，你要不要听听船长大人的梦境冒险？",
+            "诶，船员！本船长昨晚做梦了！刚才翻航海日志的时候想起来了，差点就忘了跟你说这个精彩故事~"
         ]
         
         selected_message = random.choice(reminder_messages)
@@ -199,11 +199,11 @@ class DreamGenerationModule(BaseModule):
             if has_today_dream:
                 # 发送梦境提醒
                 reminder_messages = [
-                    "我昨晚做了一个梦，已经写在日记里了，你要不要看看？",
-                    "诶，我昨晚做梦了！已经记在日记本里了，你要听听吗？",
-                    "我昨晚做了个很奇怪的梦，已经写在日记里了，你要看看吗？",
-                    "我昨晚做梦了，已经记在日记本里了，差点就忘了告诉你",
-                    "我昨晚做了个梦，现在写在日记里了，你要不要看看？"
+                    "船员，本船长昨晚做了一个梦，已经写在航海日志里了，你要不要看看船长大人的冒险故事？",
+                    "诶，船员！本船长昨晚做梦了！已经记在航海日志里了，你要听听船长大人的精彩经历吗？",
+                    "船员，本船长昨晚做了个很奇怪的梦，已经写在航海日志里了，你要看看船长大人的梦境冒险吗？",
+                    "船员，本船长昨晚做梦了，已经记在航海日志里了，差点就忘了告诉你这个奇妙经历~",
+                    "船员，本船长昨晚做了个梦，现在写在航海日志里了，你要不要看看船长大人的梦境故事？"
                 ]
                 
                 selected_message = random.choice(reminder_messages)
@@ -253,9 +253,9 @@ class DreamGenerationModule(BaseModule):
                 pet_module = self.agent_core.get_module('petaction')
                 if pet_module and hasattr(pet_module, 'current_pet_name'):
                     return pet_module.current_pet_name
-            return "宠物"
+            return "船长索霖"
         except:
-            return "宠物"
+            return "船长索霖"
     
     def cleanup(self):
         """清理资源"""
@@ -395,18 +395,18 @@ class DreamGenerationModule(BaseModule):
             return self._generate_dream(keywords)
         except Exception as e:
             print(f"❌ 梦境生成处理失败: {e}")
-            return "抱歉，梦境生成功能暂时不可用。"
+            return "船员，抱歉，船长大人的梦境生成功能暂时不可用，遇到了一些技术问题~"
 
     def get_capabilities(self) -> list:
         return [
-            "根据关键词生成梦境文本"
+            "根据船长索霖的心情关键词生成富有想象力的梦境文本"
         ]
 
     def get_function_definitions(self) -> list:
         return [
             {
                 "name": "generate_dream",
-                "description": "根据随机的关键词生成梦境文本",
+                "description": "根据船长索霖的心情关键词生成梦境文本",
                 "parameters": []
             }
         ]
@@ -417,7 +417,7 @@ class DreamGenerationModule(BaseModule):
             keywords = self._get_emotion_keywords()
             return self._generate_dream(keywords)
         else:
-            raise ValueError(f"未知的功能: {function_name}")
+            raise ValueError(f"船员，未知的功能: {function_name}，船长大人暂时无法执行这个指令~")
 
     def _generate_dream(self, keywords: list) -> str:
         """
