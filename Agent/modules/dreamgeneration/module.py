@@ -12,6 +12,8 @@ from typing import Optional, List, Dict
 from qwen_agent.agents import Assistant
 from qwen_agent.gui import WebUI
 import random
+import threading
+from Agent.data.diary.diary_manager import DiaryManager
 
 class DreamGenerationModule(BaseModule):
     """梦境生成模块 - 基于自主宠物情绪状态生成梦境文本"""
@@ -23,6 +25,7 @@ class DreamGenerationModule(BaseModule):
 
     def __init__(self):
         super().__init__()
+        self.diary_manager = None
         
         # 情绪关键词映射表 - 将5维情绪映射到具体的梦境关键词
         self.emotion_keywords_mapping = {
@@ -58,9 +61,162 @@ class DreamGenerationModule(BaseModule):
         """初始化模块"""
         super().setup(config)
         
+        # 在 setup 时实例化 diary manager
+        if self.diary_manager is None:
+            self.diary_manager = DiaryManager()
+
         # 如果已经有agent_core引用，尝试连接自主宠物模块
         if hasattr(self, 'agent_core') and self.agent_core:
             self._connect_to_autonomous_pet()
+        # 启动主动梦境交互线程
+        self._dream_thread_stop = False
+        self._dream_thread = threading.Thread(target=self._dream_interaction_loop)
+        self._dream_thread.daemon = True
+        self._dream_thread.start()
+        print(" 梦境主动交互线程已启动")
+
+    def _dream_interaction_loop(self):
+        """主动梦境交互线程"""
+        import random
+        import time
+        from datetime import datetime
+        
+        is_debug = True
+        while not self._dream_thread_stop:
+            if not is_debug:
+                # 等待 10-20 分钟
+                sleep_minutes = random.randint(10, 20)
+                print(f"🌙 梦境线程将等待 {sleep_minutes} 分钟后开始交互")
+                time.sleep(sleep_minutes * 60)
+            else:
+                sleep_minutes = 1
+                print(f"🌙 梦境交互 Debug 模式，梦境线程将等待 {sleep_minutes} 分钟后开始交互")
+                time.sleep(sleep_minutes * 60)
+            try:
+                # 检查今天的梦境
+                today_dream = self.diary_manager.get_today_dream()
+                print(f"梦境数据库中存储的内容： {today_dream}")
+
+                if today_dream and today_dream['told_user']:
+                    # 梦境已存在且用户已看过，退出线程
+                    print("🌙 今日梦境已告诉用户，退出主动交互")
+                    break
+                
+                elif today_dream and not today_dream['told_user']:
+                    # 梦境存在但未告诉用户，主动提醒
+                    self._send_dream_reminder(today_dream['content'])
+                    break
+                
+                else:
+                    # 没有梦境，生成新梦境
+                    self._generate_and_send_dream()
+                    break
+                    
+            except Exception as e:
+                print(f"❌ 梦境主动交互失败: {e}")
+                break
+            if is_debug:
+                # debug 模式启动直接执行，然后等待10-20分钟
+                sleep_minutes = random.randint(10, 20)
+                print(f"🌙 梦境线程将等待 {sleep_minutes} 分钟后开始交互")
+                time.sleep(sleep_minutes * 60)
+
+    def _send_dream_reminder(self, dream_content: str):
+        """发送梦境提醒"""
+        # 随机选择提醒话语
+        reminder_messages = [
+            "你昨天睡得怎么样呀？我昨天做了一个梦，我刚刚写在日记里了，吓死我了差点就忘了",
+            "诶，我想起来了！我昨晚做了一个很奇怪的梦，已经记在日记本里了，你要不要看看？",
+            "对了对了，我昨晚做梦了！刚才整理日记的时候想起来了，差点就忘了告诉你",
+            "我昨晚做了一个梦，现在才想起来要跟你说，已经写在日记里了，你要看看吗？",
+            "突然想起来，我昨晚做了个梦，刚才整理日记的时候记起来了，差点就忘了",
+            "我昨晚的梦好有意思，刚才写日记的时候想起来了，你要不要听听看？",
+            "诶，我昨晚做梦了！刚才翻日记本的时候想起来了，差点就忘了跟你说"
+        ]
+        
+        selected_message = random.choice(reminder_messages)
+        
+        # 发送消息给用户
+        if hasattr(self, 'agent_core') and self.agent_core:
+            try:
+                # 使用气泡或聊天界面发送消息
+                if hasattr(self.agent_core, 'send_bubble_message'):
+                    self.agent_core.send_bubble_message(selected_message)
+                elif hasattr(self.agent_core, 'add_bot_message'):
+                    self.agent_core.add_bot_message(selected_message)
+                else:
+                    print(f"🌙 梦境提醒: {selected_message}")
+            except Exception as e:
+                print(f"❌ 发送梦境提醒失败: {e}")
+        else:
+            print(f"🌙 梦境提醒: {selected_message}")
+    
+    def _generate_and_send_dream(self):
+        """生成并发送新梦境"""
+        try:
+            # 生成梦境
+            # 调用 agent_core 的 process_message("你昨天做了什么梦")
+            dream_result = None
+            if hasattr(self, 'agent_core') and self.agent_core:
+                try:
+                    # process_message 可能是同步或异步，这里假设为同步
+                    dream_result = self.agent_core.process_message("你昨天做了什么梦")
+                except Exception as e:
+                    print(f"❌ 调用 agent_core 生成梦境失败: {e}")
+                    dream_result = None
+            else:
+                print("⚠️ agent_core 不可用，无法生成梦境")
+                dream_result = None
+
+            if dream_result and isinstance(dream_result, str):
+                # 发送梦境提醒
+                reminder_messages = [
+                    "我昨晚做了一个梦，已经写在日记里了，你要不要看看？",
+                    "诶，我昨晚做梦了！已经记在日记本里了，你要听听吗？",
+                    "我昨晚做了个很奇怪的梦，已经写在日记里了，你要看看吗？",
+                    "我昨晚做梦了，已经记在日记本里了，差点就忘了告诉你",
+                    "我昨晚做了个梦，现在写在日记里了，你要不要看看？"
+                ]
+                
+                selected_message = random.choice(reminder_messages)
+                
+                # 发送消息给用户
+                if hasattr(self, 'agent_core') and self.agent_core:
+                    try:
+                        if hasattr(self.agent_core, 'send_bubble_message'):
+                            self.agent_core.send_bubble_message(selected_message)
+                        elif hasattr(self.agent_core, 'add_bot_message'):
+                            self.agent_core.add_bot_message(selected_message)
+                        else:
+                            print(f"🌙 新梦境提醒: {selected_message}")
+                    except Exception as e:
+                        print(f"❌ 发送新梦境提醒失败: {e}")
+                else:
+                    print(f"🌙 新梦境提醒: {selected_message}")
+                    
+            else:
+                print("❌ 生成梦境失败")
+                
+        except Exception as e:
+            print(f"❌ 生成并发送梦境失败: {e}")
+    
+    def _get_current_pet_name(self) -> str:
+        """获取当前宠物名称"""
+        try:
+            if hasattr(self, 'agent_core') and self.agent_core:
+                pet_module = self.agent_core.get_module('petaction')
+                if pet_module and hasattr(pet_module, 'current_pet_name'):
+                    return pet_module.current_pet_name
+            return "宠物"
+        except:
+            return "宠物"
+    
+    def cleanup(self):
+        """清理资源"""
+        self._dream_thread_stop = True
+        if hasattr(self, '_dream_thread') and self._dream_thread.is_alive():
+            self._dream_thread.join(timeout=5)
+        super().cleanup()
 
     def set_agent_core(self, agent_core):
         """设置Agent核心引用，用于访问其他模块"""
