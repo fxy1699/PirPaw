@@ -397,7 +397,7 @@ class AutonomousPetModule(BaseModule):
                     should_execute = True
                     print(f"⏰ 首次执行或时间未设置，立即开始思考...")
                 
-                should_execute = True
+                # should_execute = True
                 if should_execute:
                     # 让大脑思考
                     action_plan = self.brain.think()
