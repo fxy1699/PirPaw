@@ -1,67 +1,120 @@
 {
   "default": {
-    "images": "happy",
-    "act_num": 1
+    "images": "breath",
+    "act_num": 8,
+    "frame_refresh": 0.4
   },
   "up" : {
-    "images": "happy",
-    "act_num": 1
+    "images": "up",
+    "act_num": 2,
+    "frame_refresh": 0.3
   },
   "down" : {
-    "images": "happy",
-    "act_num": 1
+    "images": "fall",
+    "act_num": 1,
+    "frame_refresh": 0.5
   },
   "left": {
-    "images": "happy",
-    "act_num": 1
+    "images": "walk",
+    "act_num": 6,
+    "frame_refresh": 0.2,
+    "mirror": true
   },
   "right": {
-    "images": "happy",
-    "act_num": 1
+    "images": "walk",
+    "act_num": 6,
+    "frame_refresh": 0.2
   },
   "fall_asleep": {
-    "images": "happy",
-    "act_num": 1,
-    "frame_refresh": 0.1
-  },
-  "sleep": {
-    "images": "happy",
+    "images": "sleep",
     "act_num": 3,
     "frame_refresh": 0.5
   },
-  "left_walk": {
-    "images": "happy",
+  "sleep": {
+    "images": "sleep",
     "act_num": 3,
+    "frame_refresh": 0.8
+  },
+  "left_walk": {
+    "images": "walk",
+    "act_num": 6,
     "need_move": true,
     "direction": "left",
-    "frame_refresh": 0.2
+    "frame_refresh": 0.2,
+    "mirror": true
   },
   "right_walk": {
-    "images": "happy",
-    "act_num": 3,
+    "images": "walk",
+    "act_num": 6,
     "need_move": true,
     "direction": "right",
     "frame_refresh": 0.2
   },
   "drag": {
-    "images": "happy",
-    "act_num": 1
+    "images": "up",
+    "act_num": 2,
+    "frame_refresh": 0.3
   },
   "fall": {
-    "images": "happy",
-    "act_num": 1
+    "images": "fall",
+    "act_num": 1,
+    "frame_refresh": 0.5
   },
   "onfloor": {
-    "images": "happy",
-    "act_num": 1
+    "images": "breath",
+    "act_num": 8,
+    "frame_refresh": 0.4
   },
   "angry": {
-    "images": "happy",
-    "act_num": 1
+    "images": "rob",
+    "act_num": 8,
+    "frame_refresh": 0.25
   },
   "happy": {
     "images": "happy",
     "act_num": 3,
     "frame_refresh": 0.3
+  },
+  "eat_cake": {
+    "images": "cake",
+    "act_num": 8,
+    "frame_refresh": 0.3
+  },
+  "eat_jelly": {
+    "images": "jelly",
+    "act_num": 8,
+    "frame_refresh": 0.3
+  },
+  "eat_deadfinger": {
+    "images": "deadfinger",
+    "act_num": 8,
+    "frame_refresh": 0.3
+  },
+  "rob": {
+    "images": "rob",
+    "act_num": 8,
+    "frame_refresh": 0.25
+  },
+  "click": {
+    "images": "click",
+    "act_num": 7,
+    "frame_refresh": 0.15
+  },
+  "breath": {
+    "images": "breath",
+    "act_num": 8,
+    "frame_refresh": 0.4
+  },
+  "watch_tv": {
+    "images": "watchtv",
+    "act_num": 28,
+    "frame_refresh": 0.2,
+    "loop_start": 13,
+    "loop_end": 28
+  },
+  "dream": {
+    "images": "dream",
+    "act_num": 7,
+    "frame_refresh": 0.4
   }
 }

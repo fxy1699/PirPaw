@@ -399,21 +399,21 @@ class AutonomousPetModule(BaseModule):
                 
                 # should_execute = True
                 if should_execute:
-                    # 让大脑思考
-                    action_plan = self.brain.think()
-                    
-                    if action_plan:
-                        print(f"🧠 宠物决定执行: {action_plan['action_type']}")
+                # 让大脑思考
+                action_plan = self.brain.think()
+                
+                if action_plan:
+                    print(f"🧠 宠物决定执行: {action_plan['action_type']}")
                         
                         # 记录执行前的情绪状态
                         emotions_before = self.emotions.emotions.copy() if self.emotions else {}
-                        
-                        # 执行行为
-                        success = self.behavior_executor.execute_behavior(action_plan)
-                        
+                    
+                    # 执行行为
+                    success = self.behavior_executor.execute_behavior(action_plan)
+                    
                         # 记录结果到宠物内存
-                        self.brain.record_behavior_result(action_plan, success)
-                        
+                    self.brain.record_behavior_result(action_plan, success)
+                    
                         # 记录执行时间到调度器并更新下次行为时间
                         if hasattr(self.scheduler, 'record_execution'):
                             self.scheduler.record_execution()
@@ -684,8 +684,8 @@ class AutonomousPetModule(BaseModule):
                     print(f"🎈 自动播放气泡已启动: {bubble_dict.get('message', '')} (共{len(bubble_dict.get('segments', [])) + 1}段)")
                 else:
                     # 使用原有的方法
-                    self.bubble_manager.register_bubble.emit(bubble_dict)
-                    print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
+                self.bubble_manager.register_bubble.emit(bubble_dict)
+                print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
             else:
                 print("⚠️ 气泡管理器未连接")
         except Exception as e:

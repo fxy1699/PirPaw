@@ -7,7 +7,7 @@ import platform
 try:
     if platform.system() == "Windows":
         import comtypes
-        from .video_detect import VideoPlaybackDetector
+from .video_detect import VideoPlaybackDetector
         DEPENDENCIES_AVAILABLE = True
     else:
         # 非Windows系统不需要这个模块
