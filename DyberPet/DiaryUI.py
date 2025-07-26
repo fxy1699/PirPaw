@@ -359,6 +359,21 @@ class DetailViewDialog(QDialog):
         
         layout.addWidget(basic_group)
         
+        # AI回复内容组
+        ai_response = content.get('ai_response', '')
+        if ai_response:
+            ai_group = QGroupBox("🤖 AI回复内容")
+            ai_layout = QVBoxLayout(ai_group)
+            
+            ai_text = QTextEdit()
+            ai_text.setPlainText(ai_response)
+            ai_text.setReadOnly(True)
+            ai_text.setMaximumHeight(200)
+            ai_text.setStyleSheet("background: #e8f5e8; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-family: 'Microsoft YaHei', sans-serif;")
+            ai_layout.addWidget(ai_text)
+            
+            layout.addWidget(ai_group)
+        
         # 情绪状态对比组
         emotions_before = content.get('emotions_before', {})
         emotions_after = content.get('emotions_after', {})
@@ -712,6 +727,7 @@ class DiaryEntryWidget(QFrame):
         action_name = content.get('action_name', '未知行为')
         behavior_content = content.get('content', '')
         trigger_reason = content.get('trigger_reason', '未知原因')
+        ai_response = content.get('ai_response', '')  # 新增：AI回复内容
         
         # 现在 action_name 已经是自然化的中文，直接使用
         display_name = action_name
@@ -721,6 +737,12 @@ class DiaryEntryWidget(QFrame):
             behavior_text += f"\n💭 {behavior_content[:50]}{'...' if len(behavior_content) > 50 else ''}"
         if trigger_reason:
             behavior_text += f"\n🎯 触发: {trigger_reason}"
+        
+        # 新增：显示AI回复概要
+        if ai_response:
+            # 截取AI回复的前30个字符作为预览
+            ai_preview = ai_response[:30] + ('...' if len(ai_response) > 30 else '')
+            behavior_text += f"\n🤖 AI: {ai_preview}"
         
         behavior_label = QLabel(behavior_text)
         behavior_label.setStyleSheet("color: #555; font-size: 9px; padding: 2px 6px; background: #fce4ec; border-radius: 4px;")

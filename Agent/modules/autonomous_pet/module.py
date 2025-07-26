@@ -446,7 +446,8 @@ class AutonomousPetModule(BaseModule):
                                         emotions_before=emotions_before,
                                         emotions_after=emotions_after,
                                         pet_name=pet_name,
-                                        action_name_original='tool_call'
+                                        action_name_original='tool_call',
+                                        ai_response=f"AI回复: {action_plan.get('ai_response', '无回复')}"  # 新增：记录AI回复
                                     )
                                 else:
                                     # 其他类型的行为记录
@@ -458,7 +459,8 @@ class AutonomousPetModule(BaseModule):
                                         emotions_before=emotions_before,
                                         emotions_after=emotions_after,
                                         pet_name=pet_name,
-                                        action_name_original=action_plan['action_type']
+                                        action_name_original=action_plan['action_type'],
+                                        ai_response=action_plan.get('ai_response', None)  # 新增：记录AI回复
                                     )
                                 
                                 print(f"[DEBUG] 自主行为全部内容：{action_plan}")

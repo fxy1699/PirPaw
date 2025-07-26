@@ -232,7 +232,7 @@ class DiaryManager:
     def add_autonomous_behavior_entry(self, behavior_type: str, action_name: str, content: str, 
                                      trigger_reason: str = "", emotions_before: Dict = None, 
                                      emotions_after: Dict = None, pet_name: str = None,
-                                     action_name_original: str = None) -> int:
+                                     action_name_original: str = None, ai_response: str = None) -> int:
         """添加自主行为记录"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -264,7 +264,8 @@ class DiaryManager:
                     "content": content,
                     "trigger_reason": trigger_reason,
                     "emotions_before": emotions_before or {},
-                    "emotions_after": emotions_after or {}
+                    "emotions_after": emotions_after or {},
+                    "ai_response": ai_response  # 新增：AI回复内容
                 }
                 
                 content_json = json.dumps(details, ensure_ascii=False)

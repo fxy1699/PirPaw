@@ -165,6 +165,9 @@ class BehaviorExecutor:
         print(f"🔍 [DEBUG] 完整反馈: {full_feedback}")
         print(f"🔍 [DEBUG] 精简反馈: {simplified_feedback}")
         
+        # 将AI回复添加到action_plan中，供后续记录使用
+        action_plan['ai_response'] = full_feedback
+        
         success = True
         
         # 优先使用气泡显示精简的工具调用结果
@@ -221,7 +224,8 @@ class BehaviorExecutor:
                 emotions_before=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
                 emotions_after=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
                 pet_name=self._get_current_pet_name(),
-                action_name_original='tool_call'
+                action_name_original='tool_call',
+                ai_response=full_feedback  # 新增：记录AI的完整回复
             )
             print(f"✅ 工具调用已记录到日记本")
             
