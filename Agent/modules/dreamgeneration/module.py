@@ -122,7 +122,7 @@ class DreamGenerationModule(BaseModule):
                 ]
             }
         ]
-        self.dream_bot = self._init_agent_service()
+        # self.dream_bot = self._init_agent_service()
 
     def _init_agent_service(self):
         try:

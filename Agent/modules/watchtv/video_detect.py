@@ -312,9 +312,9 @@ class VideoPlaybackDetector:
             pass
 
         # Debug output: print all enumerated process names and window titles
-        if debug_window_processes:
-            process_info = [f"{proc} - {title}" for proc, title in debug_window_processes]
-            print(f"[WatchTV - Debug] is_window_playing_video() 枚举到的进程和窗口名: {process_info}")
+        # if debug_window_processes:
+        #     process_info = [f"{proc} - {title}" for proc, title in debug_window_processes]
+        #     print(f"[WatchTV - Debug] is_window_playing_video() 枚举到的进程和窗口名: {process_info}")
 
         return found[0]
 
