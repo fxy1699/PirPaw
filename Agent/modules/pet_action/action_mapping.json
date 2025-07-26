@@ -6,7 +6,13 @@
     "sad_keywords": ["悲伤", "难过", "伤心", "沮丧", "郁闷", "不开心"],
     "angry_keywords": ["愤怒", "生气", "气愤", "不爽", "火大", "发火"],
     "stand_keywords": ["站立", "待机", "静止", "不动", "默认", "站着"],
-    "play_keywords": ["玩耍", "游戏", "玩", "娱乐", "嬉戏", "玩一下"]
+    "play_keywords": ["玩耍", "游戏", "玩", "娱乐", "嬉戏", "玩一下"],
+    "eat_keywords": ["吃东西", "进食", "用餐", "吃", "食物"],
+    "breath_keywords": ["呼吸", "深呼吸", "放松", "冥想"],
+    "rob_keywords": ["打劫", "抢劫", "当强盗", "做坏事"],
+    "watch_keywords": ["看电视", "看视频", "追剧", "观看"],
+    "dream_keywords": ["做梦", "梦境", "分享梦境", "梦想"],
+    "click_keywords": ["点击", "互动", "鼠标点击", "触摸"]
   },
   
   "pet_specific_mappings": {
@@ -24,6 +30,38 @@
         "简单动作": "simple_act"
       },
       "preferred_actions": ["stand", "onfloor"]
+    },
+    "solin": {
+      "special_actions": {
+        "吃蛋糕": "eat_cake",
+        "吃蛋糕了": "eat_cake",
+        "来个蛋糕": "eat_cake",
+        "吃水母": "eat_jelly",
+        "吃果冻": "eat_jelly",
+        "吃死人手指": "eat_deadfinger",
+        "恐怖食物": "eat_deadfinger",
+        "打劫": "rob",
+        "抢劫": "rob",
+        "当强盗": "rob",
+        "点击": "click",
+        "鼠标点击": "click",
+        "互动": "click",
+        "呼吸": "breath",
+        "深呼吸": "breath",
+        "放松": "breath",
+        "看电视": "watch_tv",
+        "看视频": "watch_tv",
+        "追剧": "watch_tv",
+        "分享梦境": "dream",
+        "做梦": "dream",
+        "梦境": "dream",
+        "向上提起": "up",
+        "被拖拽": "up",
+        "走路": "walk",
+        "散步": "walk",
+        "行走": "walk"
+      },
+      "preferred_actions": ["breath", "happy", "walk", "sleep"]
     },
     "派蒙": {
       "special_actions": {

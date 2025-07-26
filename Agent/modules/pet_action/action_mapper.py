@@ -89,6 +89,22 @@ class ActionMapper:
                 "思考|想事情|thinking": "thinking", 
                 "观察|看周围|looking": "looking",
                 "等待|waiting": "waiting"
+            },
+            
+            # 新增：食物动作映射
+            "food_actions": {
+                "吃蛋糕|来个蛋糕|eat_cake": "eat_cake",
+                "吃水母|吃果冻|eat_jelly": "eat_jelly", 
+                "吃死人手指|恐怖食物|eat_deadfinger": "eat_deadfinger"
+            },
+            
+            # 新增：特殊行为映射
+            "special_behaviors": {
+                "打劫|抢劫|当强盗|做坏事|rob": "rob",
+                "点击|互动|鼠标点击|触摸|click": "click",
+                "呼吸|深呼吸|放松|冥想|breath": "breath",
+                "看电视|看视频|追剧|观看|watch_tv": "watch_tv",
+                "做梦|梦境|分享梦境|梦想|dream": "dream"
             }
         }
     
