@@ -598,21 +598,17 @@ class DetailViewDialog(QDialog):
         
         dream_date = content.get('date', '未知日期')
         dream_content = content.get('dream_content', '')
-        told_user = content.get('told_user', False)
+        # 不再显示 told_user 状态
         
         basic_layout.addWidget(QLabel("梦境日期:"), 0, 0)
         basic_layout.addWidget(QLabel(f"💭 {dream_date}"), 0, 1)
         
-        basic_layout.addWidget(QLabel("状态:"), 1, 0)
-        status_text = "✅ 已告诉用户" if told_user else "⏳ 未告诉用户"
-        basic_layout.addWidget(QLabel(status_text), 1, 1)
-        
         if dream_content:
-            basic_layout.addWidget(QLabel("梦境内容:"), 2, 0)
+            basic_layout.addWidget(QLabel("梦境内容:"), 1, 0)
             content_label = QLabel(dream_content)
             content_label.setWordWrap(True)
             content_label.setStyleSheet("padding: 8px; background: #f0f8ff; border-radius: 6px; font-size: 12px;")
-            basic_layout.addWidget(content_label, 2, 1)
+            basic_layout.addWidget(content_label, 1, 1)
         
         layout.addWidget(basic_group)
     
@@ -855,6 +851,8 @@ class DiaryEntryWidget(QFrame):
             self._add_simple_autonomous_behavior_info(layout, content)
         elif self.entry['entry_type'] == 'ai_diary':
             self._add_simple_ai_diary_info(layout, content)
+        elif self.entry['entry_type'] == 'dream':
+            self._add_simple_dream_info(layout, content)
         else:
             # 通用内容显示
             content_text = str(content)[:80] + ('...' if len(str(content)) > 80 else '')
@@ -969,7 +967,6 @@ class DiaryEntryWidget(QFrame):
                 content = json.loads(content)
             except:
                 content = {}
-        
         # 获取AI生成的日记内容
         generated_content = content.get('generated_content', '')
         original_tool_call = content.get('original_tool_call', {})
@@ -988,6 +985,22 @@ class DiaryEntryWidget(QFrame):
         ai_diary_label.setStyleSheet("color: #333; font-size: 9px; padding: 2px 6px; background: #e8f5e8; border-radius: 4px; border-left: 3px solid #4CAF50;")
         ai_diary_label.setWordWrap(True)
         layout.addWidget(ai_diary_label)
+        
+    def _add_simple_dream_info(self, layout: QVBoxLayout, content: Dict):
+        """简化的梦境信息显示"""
+        if isinstance(content, str):
+            try:
+                import json
+                content = json.loads(content)
+            except:
+                content = {}
+        
+        dream_content = content.get('dream_content', '')
+        preview_text = dream_content[:50] + ('...' if len(dream_content) > 50 else '')
+        dream_label = QLabel(f"💭 {preview_text}")
+        dream_label.setStyleSheet("color: #555; font-size: 9px; padding: 2px 6px; background: #f0f8ff; border-radius: 4px;")
+        dream_label.setWordWrap(True)
+        layout.addWidget(dream_label)
     
     def mousePressEvent(self, event):
         """鼠标点击事件"""
