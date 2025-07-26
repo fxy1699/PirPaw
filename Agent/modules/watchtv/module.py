@@ -7,7 +7,7 @@ import platform
 try:
     if platform.system() == "Windows":
         import comtypes
-from .video_detect import VideoPlaybackDetector
+        from .video_detect import VideoPlaybackDetector
         DEPENDENCIES_AVAILABLE = True
     else:
         # 非Windows系统不需要这个模块
@@ -17,6 +17,7 @@ except ImportError as e:
     DEPENDENCIES_AVAILABLE = False
     print(f"⚠️ WatchTV模块依赖缺失: {e}")
     print("💡 请安装: pip install comtypes pycaw")
+
 
 class WatchTVModule(BaseModule):
     name = "看电视检测"
@@ -56,11 +57,13 @@ class WatchTVModule(BaseModule):
                 status = self.detector.is_any_video_playing()
                 print(f"[WatchTV] 监测中，是否有视频播放：{status}")
                 if not self.last_status and status:
-                    self.agent_core_ref.process_message("让宠物看电视")
-                    print(f"[WatchTV] 让宠物看电视")
+                    if self.agent_core_ref:
+                        self.agent_core_ref.process_message("让宠物看电视")
+                        print(f"[WatchTV] 让宠物看电视")
                 elif self.last_status and not status:
-                    self.agent_core_ref.process_message("让宠物站着")
-                    print(f"[WatchTV] 宠物不看电视了")
+                    if self.agent_core_ref:
+                        self.agent_core_ref.process_message("让宠物站着")
+                        print(f"[WatchTV] 宠物不看电视了")
                 self.last_status = status
                 time.sleep(5)
             except Exception as e:
@@ -88,6 +91,24 @@ class WatchTVModule(BaseModule):
             {
                 "name": "get_watch_status",
                 "description": "获取当前是否在看视频",
-                "parameters": {}
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                    "required": []
+                }
             }
         ]
+
+    def call_function(self, function_name: str, arguments: dict):
+        """调用WatchTV模块的具体功能"""
+        if not DEPENDENCIES_AVAILABLE:
+            raise RuntimeError(f"模块 {self.name} 依赖不可用")
+        
+        if function_name == "get_watch_status":
+            if self.detector:
+                status = self.detector.is_any_video_playing()
+                return f"当前视频播放状态: {'正在播放' if status else '未播放'}"
+            else:
+                return "检测器未初始化"
+        else:
+            raise ValueError(f"未知功能: {function_name}")

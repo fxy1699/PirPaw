@@ -51,7 +51,7 @@ class DreamGenerationModule(BaseModule):
                 'medium': ['Introspective 内省的', 'Contemplative 沉思的', 'Reflective 反思的', 'Meditative 冥想的', 'Quiet 安静的'],
                 'low': ['Connected 连接的', 'Accompanied 有陪伴的', 'Social 社交的', 'Warm 温暖的', 'Embraced 被拥抱的']
             }
-        ]
+        }
         # self.dream_bot = self._init_agent_service()
 
     def setup(self, config=None):
