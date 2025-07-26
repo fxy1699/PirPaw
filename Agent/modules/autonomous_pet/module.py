@@ -66,6 +66,8 @@ class AutonomousPetModule(BaseModule):
         self.min_interval_minutes = 5
         self.max_interval_minutes = 30
         
+        self.last_daywork_summary_date = None
+        
     def setup(self, config=None):
         """初始化模块"""
         super().setup(config)
@@ -392,6 +394,24 @@ class AutonomousPetModule(BaseModule):
         
         while self.is_running:
             try:
+                # ==== 新增：每天晚上8点自动触发每日总结 ====
+                now = datetime.now()
+                if now.hour == 20 and (self.last_daywork_summary_date != now.date()):
+                    try:
+                        action_plan = {
+                            'action_type': 'tool_call',
+                            'tool': 'work_summary',
+                            'reason': '每日定时总结',
+                            'timestamp': now.isoformat(),
+                            'forced': True
+                        }
+                        if self.behavior_executor:
+                            self.behavior_executor.execute_behavior(action_plan)
+                            print("✅ 晚上8点自动触发了每日总结")
+                            self.last_daywork_summary_date = now.date()
+                    except Exception as e:
+                        print(f"❌ 自动生成每日总结失败: {e}")
+                # ==== 原有自主行为逻辑 ====
                 # 检查是否到了执行时间
                 should_execute = False
                 if hasattr(self.scheduler, 'next_behavior_time') and self.scheduler.next_behavior_time:
