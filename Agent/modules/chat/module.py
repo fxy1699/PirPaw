@@ -35,6 +35,20 @@ class ChatModule(BaseModule):
         """初始化Qwen-Agent"""
         super().setup(config)
         
+        # 设置环境变量解决编码问题
+        import os
+        os.environ['PYTHONIOENCODING'] = 'utf-8'
+        
+        # 在 Windows 上设置 locale
+        import locale
+        try:
+            locale.setlocale(locale.LC_ALL, 'C.UTF-8')
+        except:
+            try:
+                locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
+            except:
+                pass  # 如果都失败，继续使用默认设置
+        
         try:
             # 检查是否有API密钥
             api_key = self.config.get('qwen_api_key', '')
@@ -967,6 +981,9 @@ class ChatModule(BaseModule):
         """构建包含工具描述的系统消息"""
         current_time = datetime.now()
         time_greeting = self._get_time_greeting(current_time)
+        
+        # 使用英文时间格式
+        time_str = current_time.strftime('%Y-%m-%d %H:%M')
         
         # 检查可用工具
         import os
