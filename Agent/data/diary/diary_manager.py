@@ -100,6 +100,16 @@ class DiaryManager:
                 )
             ''')
             
+            # 新增日志总结表和相关操作方法
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS log_summary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT,
+                    content TEXT,
+                    told_user BOOLEAN DEFAULT 0
+                )
+            ''')
+            
             conn.commit()
             print("✅ 日记数据库初始化完成")
     
@@ -561,6 +571,23 @@ class DiaryManager:
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.cursor()
             cursor.execute('UPDATE dream_diary SET told_user=1 WHERE date=?', (date,))
+            conn.commit()
+
+    def get_log_summary_by_date(self, date):
+        """根据日期获取日志总结记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT content, told_user FROM log_summary WHERE date=?', (date,))
+            row = cursor.fetchone()
+            if row:
+                return {'content': row[0], 'told_user': bool(row[1])}
+            return None
+
+    def save_log_summary(self, date, content):
+        """保存日志总结记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO log_summary (date, content, told_user) VALUES (?, ?, 0)', (date, content))
             conn.commit()
 
 

@@ -76,6 +76,32 @@ class DayWork(BaseModule):
 
     def generate_daily_summary(self, max_images=4):
         """生成工作总结：只返回图片描述和应用时长统计，不做大模型总结"""
+        today_date = datetime.now().strftime("%Y-%m-%d")
+        current_hour = datetime.now().hour
+        
+        # # 检查时间，如果还没到晚上7点，提示用户晚点再来
+        # if current_hour < 19:
+        #     remaining_hours = 19 - current_hour
+        #     if remaining_hours == 1:
+        #         time_msg = "还有1小时"
+        #     else:
+        #         time_msg = f"还有{remaining_hours}小时"
+            
+        #     prompt = f"⏰ 现在还太早了！现在是{current_hour}点，{time_msg}才到晚上7点。\n\n💡 建议等到晚上7点后再来获取工作总结，这样能获得更完整的一天数据哦！"
+        #     print(f"📋 时间检查：当前{current_hour}点，未到晚上7点，返回提示信息")
+        #     return prompt
+        
+        # 先检查今天是否已经保存过内容
+        try:
+            from Agent.data.diary.diary_manager import diary_manager
+            existing_summary = diary_manager.get_log_summary_by_date(today_date)
+            if existing_summary and existing_summary.get('content'):
+                print(f"📋 今天的工作总结已存在，直接返回已保存的内容")
+                return existing_summary['content']
+        except Exception as e:
+            print(f"⚠️ 检查已保存工作总结失败: {e}")
+        
+        # 如果没有保存过，则生成新的总结
         today = datetime.now().strftime("%Y%m%d")
         folder = os.path.join(os.getcwd(), "screenshots", today)
         images = []
@@ -124,6 +150,15 @@ class DayWork(BaseModule):
             summary = f"读取应用时长数据失败: {e}"
         result = "【今日截图内容分析】\n" + "\n\n".join(image_descriptions)
         result += "\n\n【今日应用使用统计】\n" + summary
+        
+        # 保存到日志总结表
+        try:
+            from Agent.data.diary.diary_manager import diary_manager
+            diary_manager.save_log_summary(today_date, result)
+            print(f"✅ 工作总结已保存到日志总结表: {today_date}")
+        except Exception as e:
+            print(f"⚠️ 保存工作总结到日志总结表失败: {e}")
+        
         return result
 
     def setup(self, config=None):
