@@ -185,8 +185,91 @@ class DetailViewDialog(QDialog):
                 diary_manager.mark_dream_told(dream_date)
                 print(f"✅ 梦境已标记为已告诉用户: {dream_date}")
                 
+                # 添加气泡提示功能
+                self._show_dream_read_bubble()
+                
         except Exception as e:
             print(f"⚠️ 标记梦境状态失败: {e}")
+    
+    def _show_dream_read_bubble(self):
+        """显示梦境阅读气泡"""
+        try:
+            import random
+            from PySide6.QtWidgets import QApplication
+            
+            # 随机选择宠物高兴的话语
+            happy_messages = [
+                "哇，你来看我的日记了，我写的好吗？",
+                "你在看我的梦境记录吗？我梦到了好多有趣的事情呢！",
+                "嘿嘿，你终于来看我的梦境啦，我等你很久了~",
+                "你觉得我的梦境怎么样？是不是很有想象力？",
+                "我的梦境你喜欢吗？我很高兴能和你分享这些！",
+                "谢谢你来看我的梦境记录，这对我来说很重要！"
+            ]
+            
+            selected_message = random.choice(happy_messages)
+            
+            # 获取应用实例和Agent核心
+            app = QApplication.instance()
+            agent_core = None
+            
+            if hasattr(app, 'chat_integration_success') and app.chat_integration_success:
+                try:
+                    from Agent.dyberpet_agent_integration import get_agent_core
+                    agent_core = get_agent_core()
+                except Exception as e:
+                    print(f"⚠️ 获取Agent核心失败: {e}")
+            
+            # 查找自主宠物模块
+            if agent_core:
+                try:
+                    # 查找自主宠物模块
+                    autonomous_pet_module = None
+                    for module in agent_core.modules:
+                        if hasattr(module, 'name') and '自主宠物' in module.name:
+                            autonomous_pet_module = module
+                            break
+                    
+                    if autonomous_pet_module and hasattr(autonomous_pet_module, '_trigger_bubble'):
+                        # 创建气泡字典
+                        bubble_dict = {
+                            'message': selected_message,
+                            'bubble_type': 'autonomous_dream_read',
+                            'icon': None,
+                            'start_audio': None,
+                            'end_audio': None
+                        }
+                        # 调用气泡回调
+                        autonomous_pet_module._trigger_bubble(bubble_dict)
+                        print(f"🎈 梦境阅读气泡已发送: {selected_message}")
+                        return
+                except Exception as e:
+                    print(f"⚠️ 调用自主宠物气泡功能失败: {e}")
+            
+            # 降级处理：尝试直接使用气泡管理器
+            try:
+                if hasattr(app, 'p') and app.p and hasattr(app.p, 'bubble_manager'):
+                    bubble_manager = app.p.bubble_manager
+                    
+                    # 创建气泡字典
+                    bubble_dict = {
+                        'message': selected_message,
+                        'bubble_type': 'dream_read',
+                        'icon': None,
+                        'start_audio': None,
+                        'end_audio': None
+                    }
+                    
+                    # 发送气泡
+                    bubble_manager.register_bubble.emit(bubble_dict)
+                    print(f"🎈 梦境阅读气泡已通过气泡管理器发送: {selected_message}")
+                else:
+                    print(f"💬 梦境阅读消息: {selected_message} (气泡系统不可用)")
+            except Exception as e:
+                print(f"⚠️ 发送梦境阅读气泡失败: {e}")
+                
+        except Exception as e:
+            print(f"⚠️ 显示梦境阅读气泡失败: {e}")
     
     def setup_ui(self):
         """设置UI"""
@@ -1652,4 +1735,4 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     window = DiaryWindow()
     window.show()
-    sys.exit(app.exec()) 
+    sys.exit(app.exec())
