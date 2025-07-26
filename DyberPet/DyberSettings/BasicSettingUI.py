@@ -217,24 +217,26 @@ class SettingInterface(ScrollArea):
         
         # 思考间隔（最小）
         self.AutonomousMinIntervalCard = Dyber_RangeSettingCard(
-            1, 60, 1,
+            0.1, 60, 0.1,
             QIcon(os.path.join(basedir, 'res/icons/Timer_icon.png')),
             self.tr("Min Think Interval"),
-            self.tr("Minimum time between autonomous thoughts (minutes)"),
+            self.tr("Minimum time between autonomous thoughts (minutes, supports 0.1-60)"),
             parent=self.AutonomousGroup
         )
-        self.AutonomousMinIntervalCard.setValue(settings.autonomous_min_interval)
+        self.AutonomousMinIntervalCard._is_autonomous_interval = True
+        self.AutonomousMinIntervalCard.setValue(int(settings.autonomous_min_interval * 10))
         self.AutonomousMinIntervalCard.slider.valueChanged.connect(self._AutonomousMinIntervalChanged)
         
         # 思考间隔（最大）
         self.AutonomousMaxIntervalCard = Dyber_RangeSettingCard(
-            5, 120, 1,
+            0.5, 120, 0.1,
             QIcon(os.path.join(basedir, 'res/icons/Timer_icon.png')),
             self.tr("Max Think Interval"),
-            self.tr("Maximum time between autonomous thoughts (minutes)"),
+            self.tr("Maximum time between autonomous thoughts (minutes, supports 0.5-120)"),
             parent=self.AutonomousGroup
         )
-        self.AutonomousMaxIntervalCard.setValue(settings.autonomous_max_interval)
+        self.AutonomousMaxIntervalCard._is_autonomous_interval = True
+        self.AutonomousMaxIntervalCard.setValue(int(settings.autonomous_max_interval * 10))
         self.AutonomousMaxIntervalCard.slider.valueChanged.connect(self._AutonomousMaxIntervalChanged)
         
         # Debug模式
@@ -249,6 +251,19 @@ class SettingInterface(ScrollArea):
         else:
             self.AutonomousDebugCard.setChecked(False)
         self.AutonomousDebugCard.switchButton.checkedChanged.connect(self._AutonomousDebugChanged)
+        
+        # WatchTV Debug模式
+        self.WatchTVDebugCard = SwitchSettingCard(
+            QIcon(os.path.join(basedir, 'res/icons/system/more.svg')),
+            self.tr("WatchTV Debug Mode"),
+            self.tr("Show video detection status in console"),
+            parent=self.AutonomousGroup
+        )
+        if settings.watchtv_debug:
+            self.WatchTVDebugCard.setChecked(True)
+        else:
+            self.WatchTVDebugCard.setChecked(False)
+        self.WatchTVDebugCard.switchButton.checkedChanged.connect(self._WatchTVDebugChanged)
 
         # About ==============================================================================
         self.aboutGroup = SettingCardGroup(self.tr('About'), self.scrollWidget)
@@ -321,6 +336,7 @@ class SettingInterface(ScrollArea):
         self.AutonomousGroup.addSettingCard(self.AutonomousMinIntervalCard)
         self.AutonomousGroup.addSettingCard(self.AutonomousMaxIntervalCard)
         self.AutonomousGroup.addSettingCard(self.AutonomousDebugCard)
+        self.AutonomousGroup.addSettingCard(self.WatchTVDebugCard)
 
         self.aboutGroup.addSettingCard(self.aboutCard)
         self.aboutGroup.addSettingCard(self.helpCard)
@@ -409,25 +425,30 @@ class SettingInterface(ScrollArea):
         self._notifyAutonomousChange()
     
     def _AutonomousMinIntervalChanged(self, value):
-        settings.autonomous_min_interval = value
+        settings.autonomous_min_interval = value * 0.1
         # 确保最小间隔不大于最大间隔
-        if value > settings.autonomous_max_interval:
-            settings.autonomous_max_interval = value
-            self.AutonomousMaxIntervalCard.setValue(value)
+        if value * 0.1 > settings.autonomous_max_interval:
+            settings.autonomous_max_interval = value * 0.1
+            self.AutonomousMaxIntervalCard.setValue(int(settings.autonomous_max_interval * 10))
         settings.save_settings()
         self._notifyAutonomousChange()
     
     def _AutonomousMaxIntervalChanged(self, value):
-        settings.autonomous_max_interval = value
+        settings.autonomous_max_interval = value * 0.1
         # 确保最大间隔不小于最小间隔
-        if value < settings.autonomous_min_interval:
-            settings.autonomous_min_interval = value
-            self.AutonomousMinIntervalCard.setValue(value)
+        if value * 0.1 < settings.autonomous_min_interval:
+            settings.autonomous_min_interval = value * 0.1
+            self.AutonomousMinIntervalCard.setValue(int(settings.autonomous_min_interval * 10))
         settings.save_settings()
         self._notifyAutonomousChange()
     
     def _AutonomousDebugChanged(self, isChecked):
         settings.autonomous_debug = isChecked
+        settings.save_settings()
+        self._notifyAutonomousChange()
+    
+    def _WatchTVDebugChanged(self, isChecked):
+        settings.watchtv_debug = isChecked
         settings.save_settings()
         self._notifyAutonomousChange()
     
@@ -447,7 +468,8 @@ class SettingInterface(ScrollArea):
                             'autonomous_enabled': settings.autonomous_enabled,
                             'min_interval_minutes': settings.autonomous_min_interval,
                             'max_interval_minutes': settings.autonomous_max_interval,
-                            'debug_mode': settings.autonomous_debug
+                            'debug_mode': settings.autonomous_debug,
+                            'watchtv_debug': settings.watchtv_debug
                         }
                         module.config.update(new_config)
                         
@@ -464,14 +486,26 @@ class SettingInterface(ScrollArea):
                                 else:
                                     print("⚠️ 行为调度刷新失败")
                         break
+                    elif hasattr(module, 'name') and '看电视检测' in module.name:
+                        # 更新WatchTV模块配置
+                        new_config = {
+                            'watchtv_debug': settings.watchtv_debug
+                        }
+                        module.config.update(new_config)
+                        print(f"✅ WatchTV模块设置已更新: {new_config}")
+                        
+                        # 重新应用配置
+                        if hasattr(module, 'setup'):
+                            module.setup(new_config)
+                            print("🔄 WatchTV模块配置已重新应用")
                 else:
-                    print("⚠️ 未找到自主宠物模块")
+                    print("⚠️ 未找到相关模块")
             else:
                 print("⚠️ Agent系统未运行，设置已保存，将在下次启动时生效")
         except ImportError:
             print("⚠️ Agent系统未安装，设置已保存")
         except Exception as e:
-            print(f"⚠️ 更新自主宠物设置失败: {e}")
+            print(f"⚠️ 更新设置失败: {e}")
     
     def __showRestartTooltip(self):
         """ show restart tooltip """

@@ -149,20 +149,30 @@ class BehaviorExecutor:
             print("⚠️ Agent核心未连接，使用模拟工具调用")
             result = self._simulate_tool_call(tool)
         
-        # 生成反馈消息
-        feedback = self._generate_tool_feedback(tool, result, reason)
+        # Debug: 显示完整的工具调用结果
+        print(f"🔍 [DEBUG] 工具调用完整结果:")
+        print(f"   工具: {tool}")
+        print(f"   原因: {reason}")
+        print(f"   成功: {result.get('success', False)}")
+        print(f"   数据: {result.get('data', 'None')}")
+        if 'tool_used' in result:
+            print(f"   实际调用的工具: {result['tool_used']}")
         
-        # 显示反馈
-        print(f"🐱 宠物说: {feedback}")
+        # 生成完整和精简的反馈消息
+        full_feedback = self._generate_tool_feedback(tool, result, reason)
+        simplified_feedback = self._generate_simplified_feedback(tool, result, reason)
+        
+        print(f"🔍 [DEBUG] 完整反馈: {full_feedback}")
+        print(f"🔍 [DEBUG] 精简反馈: {simplified_feedback}")
         
         success = True
         
-        # 优先使用气泡显示工具调用结果
+        # 优先使用气泡显示精简的工具调用结果
         if self.bubble_callback:
             try:
-                bubble_dict = self._create_bubble_dict('tool_call', feedback, feedback)
+                bubble_dict = self._create_bubble_dict('tool_call', simplified_feedback, simplified_feedback)
                 self.bubble_callback(bubble_dict)
-                print(f"✅ 工具调用结果已通过气泡显示")
+                print(f"✅ 工具调用结果已通过气泡显示: {simplified_feedback}")
             except Exception as e:
                 print(f"⚠️ 气泡显示工具调用结果失败: {e}")
                 success = False
@@ -170,17 +180,55 @@ class BehaviorExecutor:
         # 备用：聊天界面显示
         elif self.chat_interface:
             try:
-                self.chat_interface.add_bot_message(feedback)
+                self.chat_interface.add_bot_message(full_feedback)
+                print(f"✅ 工具调用结果已通过聊天界面显示")
             except Exception as e:
                 print(f"⚠️ 发送工具调用结果失败: {e}")
                 success = False
         
-        # 记录工具调用
+        # 记录完整的工具调用到宠物内存
         if self.memory:
-            self.memory.save_interaction(
-                interaction_type='tool_call',
-                content=f"工具: {tool}, 结果: {result.get('data', '未知')}"
+            try:
+                self.memory.save_interaction(
+                    interaction_type='tool_call',
+                    content=f"工具: {tool}, 原因: {reason}, 结果: {result.get('data', '未知')}, 反馈: {full_feedback}"
+                )
+                print(f"✅ 工具调用已记录到宠物内存")
+            except Exception as e:
+                print(f"⚠️ 记录工具调用到内存失败: {e}")
+        
+        # 记录到日记本（包含完整信息）
+        try:
+            from ...data.diary.diary_manager import diary_manager
+            
+            # 构造日记条目
+            diary_content = {
+                'tool_name': tool,
+                'reason': reason,
+                'result_success': result.get('success', False),
+                'result_data': result.get('data', 'None'),
+                'actual_tool_used': result.get('tool_used', tool),
+                'full_feedback': full_feedback,
+                'simplified_feedback': simplified_feedback,
+                'action_plan': action_plan
+            }
+            
+            diary_manager.add_autonomous_behavior_entry(
+                behavior_type='工具调用',
+                action_name=f"调用 {tool}",
+                content=f"调用 {tool} - {reason}",
+                trigger_reason=reason,
+                emotions_before=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
+                emotions_after=getattr(self.emotions, 'emotions', {}) if self.emotions else {},
+                pet_name=self._get_current_pet_name(),
+                action_name_original='tool_call'
             )
+            print(f"✅ 工具调用已记录到日记本")
+            
+        except Exception as e:
+            print(f"⚠️ 记录工具调用到日记本失败: {e}")
+            import traceback
+            traceback.print_exc()
         
         return success
     
@@ -499,6 +547,47 @@ class BehaviorExecutor:
         else:
             # 通用回复
             return self._generate_generic_feedback(tool, data, reason)
+    
+    def _generate_simplified_feedback(self, tool: str, result: Dict[str, Any], reason: str) -> str:
+        """生成精简的反馈消息用于气泡显示"""
+        if not result['success']:
+            return f"{tool}工具出问题了~"
+        
+        data = str(result['data'])
+        
+        # 针对不同工具生成精简回复
+        if tool == 'get_time':
+            return f"现在是 {data}"
+        elif tool == 'check_system':
+            return "系统运行正常~"
+        elif tool == 'pet_status':
+            return "状态看起来不错呢！"
+        elif tool == 'take_screenshot':
+            return "截图完成！"
+        elif tool == 'get_usage_stats':
+            return "统计数据获取完成~"
+        elif tool == 'check_posture':
+            return "姿态检查完成！"
+        elif tool == 'generate_dream':
+            return "刚做了个有趣的梦~"
+        elif tool == 'analyze_screen':
+            return "屏幕内容分析完成！"
+        elif tool == 'work_summary':
+            return "工作总结生成完成~"
+        elif tool == 'remind_user':
+            return "温馨提醒已发送！"
+        else:
+            # 通用精简回复
+            return f"{tool}执行完成！"
+    
+    def _get_current_pet_name(self) -> str:
+        """获取当前宠物名称"""
+        try:
+            # 尝试从DyberPet获取当前宠物名称
+            import DyberPet.settings as settings
+            return getattr(settings, 'petname', 'unknown')
+        except:
+            return 'autonomous_pet'
     
     def _generate_time_feedback(self, data: str, reason: str) -> str:
         """生成时间查询的反馈"""

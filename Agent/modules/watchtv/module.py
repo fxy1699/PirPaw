@@ -32,6 +32,7 @@ class WatchTVModule(BaseModule):
         self.last_status = False
         self.agent_core_ref = None
         self.detector = None
+        self.debug_mode = False  # 新增：调试模式开关
         
         # 检查依赖是否可用
         if not DEPENDENCIES_AVAILABLE:
@@ -45,25 +46,44 @@ class WatchTVModule(BaseModule):
             return
             
         super().setup(config)
+        
+        # 从配置中读取调试模式设置
+        if config:
+            self.debug_mode = config.get('watchtv_debug', False)
+        
+        # 如果已经运行，先停止
+        if self.running:
+            self.cleanup()
+        
         self.detector = VideoPlaybackDetector()
         self.running = True
         self.thread = threading.Thread(target=self._monitor, daemon=True)
         self.thread.start()
-        print(f"[WatchTV] 监控线程已启动")
+        
+        if self.debug_mode:
+            print(f"[WatchTV] 监控线程已启动 (调试模式已开启)")
+        else:
+            print(f"[WatchTV] 监控线程已启动")
 
     def _monitor(self):
         while self.running:
             try:
                 status = self.detector.is_any_video_playing()
-                print(f"[WatchTV] 监测中，是否有视频播放：{status}")
+                
+                # 只在调试模式下显示监测信息
+                if self.debug_mode:
+                    print(f"[WatchTV] 监测中，是否有视频播放：{status}")
+                
                 if not self.last_status and status:
                     if self.agent_core_ref:
                         self.agent_core_ref.process_message("让宠物看电视")
-                        print(f"[WatchTV] 让宠物看电视")
+                        if self.debug_mode:
+                            print(f"[WatchTV] 让宠物看电视")
                 elif self.last_status and not status:
                     if self.agent_core_ref:
                         self.agent_core_ref.process_message("让宠物站着")
-                        print(f"[WatchTV] 宠物不看电视了")
+                        if self.debug_mode:
+                            print(f"[WatchTV] 宠物不看电视了")
                 self.last_status = status
                 time.sleep(5)
             except Exception as e:
@@ -75,7 +95,10 @@ class WatchTVModule(BaseModule):
         if self.thread is not None:
             self.thread.join(timeout=3)
         super().cleanup()
-        print(f"[WatchTV] 监控已停止")
+        if self.debug_mode:
+            print(f"[WatchTV] 监控已停止 (调试模式)")
+        else:
+            print(f"[WatchTV] 监控已停止")
 
     def set_agent_core(self, agent_core):
         self.agent_core_ref = agent_core

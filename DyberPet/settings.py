@@ -225,7 +225,7 @@ def init_settings():
     global gravity, fixdragspeedx, fixdragspeedy, tunable_scale, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
            toaster_on, usertag_dict, auto_lock, bubble_on, \
-           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug
+           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug
 
     # check json file integrity
     try:
@@ -317,9 +317,10 @@ def init_settings():
         
         # Agent自主宠物 settings ===============================
         autonomous_enabled = data_params.get('autonomous_enabled', True)
-        autonomous_min_interval = data_params.get('autonomous_min_interval', 3)
-        autonomous_max_interval = data_params.get('autonomous_max_interval', 15)
+        autonomous_min_interval = data_params.get('autonomous_min_interval', 0.1)
+        autonomous_max_interval = data_params.get('autonomous_max_interval', 0.5)
         autonomous_debug = data_params.get('autonomous_debug', False)
+        watchtv_debug = data_params.get('watchtv_debug', False)
         #======================================================
 
     else:
@@ -345,9 +346,10 @@ def init_settings():
         
         # Agent自主宠物默认设置
         autonomous_enabled = True
-        autonomous_min_interval = 3
-        autonomous_max_interval = 15
+        autonomous_min_interval = 0.1
+        autonomous_max_interval = 0.5
         autonomous_debug = False
+        watchtv_debug = False
     check_locale()
     save_settings()
 
@@ -355,7 +357,7 @@ def save_settings():
     global file_path, set_fall, gravity, fixdragspeedx, fixdragspeedy, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
            toaster_on, usertag_dict, auto_lock, bubble_on, \
-           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug
+           autonomous_enabled, autonomous_min_interval, autonomous_max_interval, autonomous_debug, watchtv_debug
 
     data_js = {'gravity':gravity,
                'set_fall': set_fall,
@@ -376,7 +378,8 @@ def save_settings():
                'autonomous_enabled':autonomous_enabled,
                'autonomous_min_interval':autonomous_min_interval,
                'autonomous_max_interval':autonomous_max_interval,
-               'autonomous_debug':autonomous_debug
+               'autonomous_debug':autonomous_debug,
+               'watchtv_debug':watchtv_debug
                }
 
     with open(file_path, 'w', encoding='utf-8') as f:

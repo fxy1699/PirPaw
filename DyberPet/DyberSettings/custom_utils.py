@@ -150,7 +150,14 @@ class Dyber_RangeSettingCard(SettingCard):
     
     def setValue(self, value):
         #qconfig.set(self.configItem, value)
-        self.valueLabel.setNum(value*self.sstep)
+        # 对于自主宠物间隔设置，需要特殊处理小数显示
+        if hasattr(self, '_is_autonomous_interval') and self._is_autonomous_interval:
+            # 自主宠物间隔：显示 value * 0.1
+            display_value = value * 0.1
+            self.valueLabel.setNum(display_value)
+        else:
+            # 其他设置：显示 value * sstep
+            self.valueLabel.setNum(value*self.sstep)
         self.valueLabel.adjustSize()
         self.slider.setValue(value)
     
