@@ -48,6 +48,9 @@ class AutonomousPetModule(BaseModule):
         # DyberPet集成
         self.bubble_manager = None
         
+        # Agent核心引用（用于调用其他模块工具）
+        self.agent_core = None
+        
         # 运行状态
         self.is_running = False
         self.scheduler_thread = None
@@ -64,23 +67,30 @@ class AutonomousPetModule(BaseModule):
         
     def setup(self, config=None):
         """初始化模块"""
-        self.config = config or {}
+        super().setup(config)
         
-        # 从DyberPet设置中加载配置
+        # 从配置中获取设置
+        self.autonomous_enabled = config.get('autonomous_enabled', True)
+        self.min_interval_minutes = config.get('min_interval_minutes', 1)
+        self.max_interval_minutes = config.get('max_interval_minutes', 5)
+        self.debug_mode = config.get('debug_mode', False)
+        
+        print(f"🔧 自主宠物配置:")
+        print(f"   启用状态: {self.autonomous_enabled}")
+        print(f"   思考间隔: {self.min_interval_minutes}-{self.max_interval_minutes}分钟")
+        print(f"   调试模式: {self.debug_mode}")
+        
+        if not self.autonomous_enabled:
+            print("💤 自主宠物功能已禁用")
+            self.initialized = False
+            return
+        
+        # 检查必要的目录
         try:
-            import DyberPet.settings as dyber_settings
-            if hasattr(dyber_settings, 'autonomous_enabled'):
-                loaded_config = {
-                    'autonomous_enabled': dyber_settings.autonomous_enabled,
-                    'min_interval_minutes': dyber_settings.autonomous_min_interval,
-                    'max_interval_minutes': dyber_settings.autonomous_max_interval,
-                    'debug_mode': dyber_settings.autonomous_debug
-                }
-                self.config.update(loaded_config)
-                print(f"📋 从DyberPet设置加载配置: {loaded_config}")
-                print(f"🔍 具体间隔值: min={dyber_settings.autonomous_min_interval}, max={dyber_settings.autonomous_max_interval}")
+            data_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'data')
+            os.makedirs(data_dir, exist_ok=True)
         except Exception as e:
-            print(f"⚠️ 加载DyberPet设置失败，使用默认配置: {e}")
+            print(f"⚠️ 创建数据目录失败: {e}")
             import traceback
             traceback.print_exc()
         
@@ -112,6 +122,11 @@ class AutonomousPetModule(BaseModule):
             
             # 应用配置
             self._apply_config()
+            
+            # 如果Agent核心引用已经设置，重新传递给组件
+            if self.agent_core:
+                print("🔄 重新设置Agent核心引用到各个组件...")
+                self._setup_agent_core_references()
             
             # 启动自主行为
             self.start_autonomous_behavior()
@@ -608,15 +623,37 @@ class AutonomousPetModule(BaseModule):
         except Exception as e:
             return f"❌ 强制行为执行出错: {e}"
     
+    def set_agent_core(self, agent_core):
+        """设置Agent核心引用，用于调用其他模块工具"""
+        print(f"🔗 开始设置Agent核心引用...")
+        print(f"   agent_core: {agent_core}")
+        print(f"   agent_core.modules数量: {len(agent_core.modules) if agent_core else 0}")
+        
+        self.agent_core = agent_core
+        
+        # 如果组件已经初始化，立即设置引用
+        if self.brain and self.behavior_executor:
+            print("✅ 组件已初始化，立即设置Agent核心引用")
+            self._setup_agent_core_references()
+        else:
+            print("⏳ 组件尚未初始化，Agent核心引用将在setup完成后设置")
+        
+        print(f"✅ 自主宠物模块已连接到Agent核心，可调用 {len(agent_core.modules) if agent_core else 0} 个模块的功能")
+    
     def connect_to_bubble_system(self, bubble_manager):
         """连接到DyberPet气泡系统"""
         try:
+            print(f"🔗 开始连接气泡系统...")
+            print(f"   bubble_manager: {bubble_manager}")
+            print(f"   behavior_executor: {self.behavior_executor}")
+            
             self.bubble_manager = bubble_manager
             
             # 设置气泡回调
             if self.behavior_executor:
                 self.behavior_executor.set_bubble_callback(self._trigger_bubble)
-                print("✅ 自主宠物已连接到气泡系统")
+                print(f"✅ 自主宠物已连接到气泡系统")
+                print(f"   回调函数已设置: {self.behavior_executor.bubble_callback is not None}")
                 return True
             else:
                 print("❌ 行为执行器未初始化，无法连接气泡系统")
@@ -624,18 +661,33 @@ class AutonomousPetModule(BaseModule):
                 
         except Exception as e:
             print(f"❌ 连接气泡系统失败: {e}")
+            import traceback
+            traceback.print_exc()
             return False
     
     def _trigger_bubble(self, bubble_dict):
-        """触发气泡显示"""
+        """触发气泡显示，支持自动播放功能"""
         try:
             if self.bubble_manager:
-                self.bubble_manager.register_bubble.emit(bubble_dict)
-                print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
+                # 检查是否有自动播放信息
+                if bubble_dict.get('auto_play', False):
+                    # 使用新的自定义气泡方法
+                    self.bubble_manager.trigger_custom_bubble(bubble_dict)
+                    print(f"🎈 自动播放气泡已启动: {bubble_dict.get('message', '')} (共{len(bubble_dict.get('segments', [])) + 1}段)")
+                else:
+                    # 使用原有的方法
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+                    print(f"🎈 气泡已触发: {bubble_dict.get('message', '')}")
             else:
                 print("⚠️ 气泡管理器未连接")
         except Exception as e:
             print(f"❌ 触发气泡失败: {e}")
+            # 降级处理：直接发送信号
+            try:
+                if self.bubble_manager:
+                    self.bubble_manager.register_bubble.emit(bubble_dict)
+            except:
+                pass
     
     def get_emotion_report(self) -> str:
         """获取情感报告"""
@@ -689,3 +741,18 @@ class AutonomousPetModule(BaseModule):
                     print(f"🔄 行为调度已刷新: 下次行为 {next_time} (约{minutes_left}分钟后)")
                     return True
         return False 
+
+    def _setup_agent_core_references(self):
+        """设置Agent核心引用到各个组件"""
+        if not self.agent_core:
+            return
+        
+        # 传递给大脑
+        if self.brain:
+            self.brain.agent_core = self.agent_core
+            print("🧠 大脑已获得Agent核心引用，可以调用其他模块工具")
+        
+        # 传递给行为执行器
+        if self.behavior_executor:
+            self.behavior_executor.set_agent_core(self.agent_core)
+            print("🎭 行为执行器已获得Agent核心引用，可以执行真实工具调用") 

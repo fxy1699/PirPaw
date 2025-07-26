@@ -67,6 +67,12 @@
       "enabled": true,
       "check_interval": 5,
       "personality": "看电视检测助手"
+    },
+    "autonomouspet": {
+      "autonomous_enabled": true,
+      "min_interval_minutes": 1,
+      "max_interval_minutes": 5,
+      "debug_mode": true
     }
   }
 } 
