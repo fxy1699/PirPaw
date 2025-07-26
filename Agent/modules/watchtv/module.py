@@ -76,14 +76,14 @@ class WatchTVModule(BaseModule):
                 
                 if not self.last_status and status:
                     if self.agent_core_ref:
-                        self.agent_core_ref.process_message("让宠物看电视")
+                        self.agent_core_ref.process_message("船员在看电视，让船长索霖也一起看")
                         if self.debug_mode:
-                            print(f"[WatchTV] 让宠物看电视")
+                            print(f"[WatchTV] 船员在看电视，让船长索霖也一起看")
                 elif self.last_status and not status:
                     if self.agent_core_ref:
-                        self.agent_core_ref.process_message("让宠物站着")
+                        self.agent_core_ref.process_message("船员不看电视了，让船长索霖回到正常状态")
                         if self.debug_mode:
-                            print(f"[WatchTV] 宠物不看电视了")
+                            print(f"[WatchTV] 船员不看电视了，让船长索霖回到正常状态")
                 self.last_status = status
                 time.sleep(5)
             except Exception as e:
@@ -130,8 +130,8 @@ class WatchTVModule(BaseModule):
         if function_name == "get_watch_status":
             if self.detector:
                 status = self.detector.is_any_video_playing()
-                return f"当前视频播放状态: {'正在播放' if status else '未播放'}"
+                return f"船员，当前视频播放状态: {'正在播放' if status else '未播放'}，船长大人随时关注你的娱乐状态~"
             else:
-                return "检测器未初始化"
+                return "船员，检测器未初始化，船长大人暂时无法监控你的视频播放状态~"
         else:
             raise ValueError(f"未知功能: {function_name}")

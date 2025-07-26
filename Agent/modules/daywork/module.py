@@ -30,7 +30,7 @@ class DayWork(BaseModule):
             from qwen_agent.agents import Assistant
 
             llm_cfg = {"model": "qwen-vl-plus"}
-            system = "你是一个图片内容分析助手，用户会上传一张图片，请你用简洁的语言描述图片的主要内容、场景、事件和细节。"
+            system = "你是船长索霖的工作助手，用户会上传一张图片，请你用简洁的语言描述图片的主要内容、场景、事件和细节。用船长关心船员工作的口吻进行分析。"
             bot = Assistant(
                 llm=llm_cfg,
                 name="图片内容分析助手",
@@ -61,7 +61,7 @@ class DayWork(BaseModule):
             messages = [
                 {
                     "role": "user",
-                    "content": [{"image": image_url}, {"text": "请描述这张图片的内容"}],
+                    "content": [{"image": image_url}, {"text": "请以船长索霖的身份，描述这张图片的内容，用关心船员工作的口吻"}],
                 }
             ]
             response = []

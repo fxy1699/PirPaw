@@ -89,11 +89,11 @@ class VisionModule(BaseModule):
             # 简单分析
             analysis_result = self.analyze_screenshot(screenshot, message)
             
-            return f"👁️ {analysis_result}"
+            return f"👁️ 船员，{analysis_result} 船长大人的观察力可是很强的~"
             
         except Exception as e:
             print(f"❌ 视觉处理失败: {e}")
-            return f"👁️ 屏幕分析遇到问题: {str(e)}"
+            return f"👁️ 屏幕分析遇到问题: {str(e)} 船员，船长大人遇到了一些技术问题~"
     
     def capture_screen(self, region=None):
         """截取屏幕并保存到screenshots文件夹"""

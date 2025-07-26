@@ -80,29 +80,29 @@ class TrackerModule(BaseModule):
     def start_tracking_command(self):
         """启动应用追踪"""
         if self.tracking_active:
-            return "📊 应用使用追踪已经在运行中"
+            return "📊 船员，应用使用追踪已经在运行中，船长大人正在监控你的工作状态~"
         
         try:
             self.start_background_tracking()
-            return "📊 应用使用追踪已启动，正在后台记录您的应用使用情况"
+            return "📊 应用使用追踪已启动，船员！船长大人正在后台记录您的应用使用情况，帮你提高工作效率~"
         except Exception as e:
-            return f"📊 启动追踪失败: {e}"
+            return f"📊 启动追踪失败: {e} 船员，船长大人遇到了一些技术问题~"
 
     def stop_tracking_command(self):
         """停止应用追踪"""
         if not self.tracking_active:
-            return "📊 应用追踪未在运行"
+            return "📊 船员，应用追踪未在运行，船长大人暂时没有监控你的工作状态~"
         
         try:
             self.stop_background_tracking()
-            return "📊 应用使用追踪已停止，数据已保存"
+            return "📊 应用使用追踪已停止，船员！船长大人已经保存了你的工作数据，随时可以查看~"
         except Exception as e:
-            return f"📊 停止追踪失败: {e}"
+            return f"📊 停止追踪失败: {e} 船员，船长大人遇到了一些技术问题~"
 
     def generate_report_command(self, message):
         """生成使用报告"""
         if not self.tracker:
-            return "📊 追踪器未初始化"
+            return "📊 船员，追踪器未初始化，船长大人需要先启动追踪功能~"
 
         try:
             # 解析请求的日期范围
@@ -118,11 +118,11 @@ class TrackerModule(BaseModule):
             return self.get_usage_report(days)
 
         except Exception as e:
-            return f"📊 生成报告失败: {e}"
+            return f"📊 生成报告失败: {e} 船员，船长大人遇到了一些技术问题~"
 
     def get_tracking_status(self):
         """获取追踪状态"""
-        status = "📊 应用追踪状态:\n"
+        status = "📊 船员，这是应用追踪状态:\n"
         status += f"• 追踪状态: {'运行中' if self.tracking_active else '已停止'}\n"
         status += f"• 支持系统: {self.tracker.os_type if self.tracker else '未知'}\n"
         status += f"• 检查间隔: {self.config.get('tracking_interval', 5)}秒\n"
@@ -130,32 +130,33 @@ class TrackerModule(BaseModule):
         if self.tracker and self.tracker.current_app:
             status += f"• 当前应用: {self.tracker.current_app}"
         
+        status += "\n船员，船长大人随时关注你的工作状态~"
         return status
 
     def get_usage_overview(self):
         """获取使用概览"""
         if not self.tracker:
-            return "📊 追踪器未初始化，请先启动追踪功能"
+            return "📊 船员，追踪器未初始化，船长大人需要先启动追踪功能~"
 
         try:
             today = datetime.now().strftime("%Y-%m-%d")
             usage_data = self.tracker.load_data()
             
             if today not in usage_data:
-                return "📊 今天还没有使用数据，请先启动追踪功能"
+                return "📊 船员，今天还没有使用数据，船长大人需要先启动追踪功能~"
 
             today_data = usage_data[today]
             total_seconds = sum(app_data["total_seconds"] for app_data in today_data.values())
             
             if total_seconds == 0:
-                return "📊 今天还没有记录到应用使用时间"
+                return "📊 船员，今天还没有记录到应用使用时间，船长大人正在等待你的工作数据~"
 
             # 获取使用时间最长的前3个应用
             sorted_apps = sorted(today_data.items(), 
                                key=lambda x: x[1]["total_seconds"], 
                                reverse=True)[:3]
 
-            overview = f"📊 今天应用使用概览:\n"
+            overview = f"📊 船员，这是今天应用使用概览:\n"
             overview += f"• 总使用时间: {str(timedelta(seconds=int(total_seconds)))}\n"
             overview += f"• 主要应用:\n"
             
@@ -163,10 +164,11 @@ class TrackerModule(BaseModule):
                 duration = str(timedelta(seconds=int(data["total_seconds"])))
                 overview += f"  - {app}: {duration}\n"
 
+            overview += "\n船员，船长大人为你感到骄傲~"
             return overview
 
         except Exception as e:
-            return f"📊 获取概览失败: {e}"
+            return f"📊 获取概览失败: {e} 船员，船长大人遇到了一些技术问题~"
 
     def get_usage_report(self, days=1):
         """获取详细使用报告"""

@@ -79,7 +79,7 @@ class BehaviorExecutor:
         display_message = self._format_behavior_message(action_type, content)
         
         # 输出到控制台（总是执行）
-        print(f"🐱 宠物说: {display_message}")
+        print(f"🐱 船长索霖说: {display_message}")
         
         # 调试信息：检查回调状态
         print(f"🔍 调试信息:")
@@ -613,33 +613,33 @@ class BehaviorExecutor:
         
         if 6 <= hour < 9:
             time_greetings = [
-                f"早上好！现在是 {data}，新的一天开始啦~",
-                f"时间是 {data}，早起的鸟儿有虫吃哦！",
-                f"现在 {data}，今天要加油呢！"
+                f"早上好，船员！现在是 {data}，新的一天开始啦~本船长的时间观念可是很准的！",
+                f"时间是 {data}，早起的鸟儿有虫吃哦！船员，时间就是金钱啊~",
+                f"现在 {data}，今天要加油呢！本船长看好你，船员！"
             ]
         elif 12 <= hour < 14:
             time_greetings = [
-                f"午饭时间！现在是 {data}，记得吃饭哦~",
-                f"时间 {data}，该补充能量了！",
-                f"现在 {data}，午休时间到了吗？"
+                f"午饭时间！现在是 {data}，记得吃饭哦~船员，本船长命令你补充能量！",
+                f"时间 {data}，该补充能量了！船员，船长大人关心你的健康！",
+                f"现在 {data}，午休时间到了吗？船员，休息也是工作的一部分~"
             ]
         elif 18 <= hour < 22:
             time_greetings = [
-                f"傍晚了呢，现在是 {data}，今天辛苦了~",
-                f"时间 {data}，该放松一下了！",
-                f"现在 {data}，晚饭时间到！"
+                f"傍晚了呢，现在是 {data}，今天辛苦了~船员，本船长为你感到骄傲！",
+                f"时间 {data}，该放松一下了！船员，船长大人批准你休息！",
+                f"现在 {data}，晚饭时间到！船员，记得犒劳自己哦~"
             ]
         elif hour >= 22 or hour < 6:
             time_greetings = [
-                f"深夜了...现在是 {data}，该休息了哦！",
-                f"时间 {data}，夜深了要早点睡~",
-                f"现在 {data}，熬夜对身体不好呢！"
+                f"深夜了...现在是 {data}，该休息了哦！船员，船长大人命令你睡觉！",
+                f"时间 {data}，夜深了要早点睡~船员，健康是最大的宝藏！",
+                f"现在 {data}，熬夜对身体不好呢！船员，本船长关心你~"
             ]
         else:
             time_greetings = [
-                f"现在时间是 {data}！",
-                f"让我看看...现在是 {data}",
-                f"时间：{data}，时间过得真快呢！"
+                f"现在时间是 {data}！船员，时间管理很重要哦~",
+                f"让我看看...现在是 {data}，本船长的时间观念可是很强的！",
+                f"时间：{data}，时间过得真快呢！船员，要珍惜时间，就像珍惜宝藏一样！"
             ]
         
         return random.choice(time_greetings)
@@ -649,31 +649,31 @@ class BehaviorExecutor:
         # 尝试解析系统信息
         if "CPU" in data or "内存" in data or "Memory" in data:
             if "高" in data or "High" in data or any(word in data for word in ["90%", "95%", "100%"]):
-                return f"哇！系统有点累呢：{data[:50]}...要不要休息一下？"
+                return f"哇！船员，系统有点累呢：{data[:50]}...要不要休息一下？本船长关心你的设备健康！"
             elif "正常" in data or "Normal" in data or any(word in data for word in ["30%", "40%", "50%"]):
-                return f"系统状态不错：{data[:50]}...运行很流畅呢！"
+                return f"系统状态不错：{data[:50]}...运行很流畅呢！船员，你的设备保养得很好~"
             else:
-                return f"系统检查完毕：{data[:50]}...看起来还行~"
+                return f"系统检查完毕：{data[:50]}...看起来还行~船员，本船长的技术眼光可是很准的！"
         else:
-            return f"让我看看系统状态...{data[:50]}...嗯，了解了！"
+            return f"让我看看系统状态...{data[:50]}...嗯，了解了！船员，技术问题本船长也能帮你分析~"
     
     def _generate_pet_status_feedback(self, data: str, reason: str) -> str:
         """生成宠物状态的反馈"""
         status_responses = [
-            f"让我看看自己的状态...{data[:40]}...感觉还不错呢！",
-            f"我现在的状态是：{data[:40]}...怎么样，还可以吧？",
-            f"自检结果：{data[:40]}...我还是很健康的！",
-            f"状态报告：{data[:40]}...今天的我很棒哦~"
+            f"让我看看自己的状态...{data[:40]}...感觉还不错呢！船员，本船长状态良好~",
+            f"我现在的状态是：{data[:40]}...怎么样，还可以吧？船长大人可是很健康的！",
+            f"自检结果：{data[:40]}...我还是很健康的！船员，船长大人随时准备为你服务~",
+            f"状态报告：{data[:40]}...今天的我很棒哦~船员，船长大人状态满分！"
         ]
         return random.choice(status_responses)
     
     def _generate_screenshot_feedback(self, data: str, reason: str) -> str:
         """生成截图的反馈"""
         screenshot_responses = [
-            f"咔嚓！我拍了张照片：{data[:30]}...你在做什么呢？",
-            f"截图完成！{data[:30]}...屏幕上的内容很有趣呢~",
-            f"拍照成功：{data[:30]}...让我看看你在忙什么！",
-            f"截屏啦！{data[:30]}...记录下这一刻~"
+            f"咔嚓！本船长拍了张照片：{data[:30]}...船员，你在做什么呢？",
+            f"截图完成！{data[:30]}...屏幕上的内容很有趣呢~船员，船长大人记录下这一刻！",
+            f"拍照成功：{data[:30]}...让我看看你在忙什么！船员，本船长的观察力可是很强的~",
+            f"截屏啦！{data[:30]}...记录下这一刻~船员，船长大人帮你保存这个瞬间！"
         ]
         return random.choice(screenshot_responses)
     
@@ -681,69 +681,69 @@ class BehaviorExecutor:
         """生成使用统计的反馈"""
         if "小时" in data or "hour" in data:
             usage_responses = [
-                f"使用统计：{data[:40]}...你今天很努力呢！",
-                f"时间统计：{data[:40]}...工作要劳逸结合哦~",
-                f"使用情况：{data[:40]}...记得适当休息！"
+                f"使用统计：{data[:40]}...船员，你今天很努力呢！本船长为你感到骄傲~",
+                f"时间统计：{data[:40]}...工作要劳逸结合哦~船员，船长大人关心你的健康！",
+                f"使用情况：{data[:40]}...记得适当休息！船员，效率很重要，但健康更重要~"
             ]
         else:
             usage_responses = [
-                f"统计结果：{data[:40]}...数据很有趣呢！",
-                f"使用报告：{data[:40]}...我帮你记录着~",
-                f"数据分析：{data[:40]}...了解了你的习惯！"
+                f"统计结果：{data[:40]}...数据很有趣呢！船员，本船长的数据分析能力可是很强的~",
+                f"使用报告：{data[:40]}...我帮你记录着~船员，船长大人随时关注你的工作状态！",
+                f"数据分析：{data[:40]}...了解了你的习惯！船员，本船长可是很细心的~"
             ]
         return random.choice(usage_responses)
     
     def _generate_posture_feedback(self, data: str, reason: str) -> str:
         """生成姿态检查的反馈"""
         if "正确" in data or "良好" in data or "Good" in data:
-            return f"姿态检查：{data[:30]}...坐姿很标准，继续保持！"
+            return f"姿态检查：{data[:30]}...坐姿很标准，继续保持！船员，船长大人很满意~"
         elif "不良" in data or "错误" in data or "Bad" in data:
-            return f"姿态提醒：{data[:30]}...要注意坐姿哦，对身体好！"
+            return f"姿态提醒：{data[:30]}...要注意坐姿哦，对身体好！船员，船长大人命令你调整姿势！"
         else:
-            return f"姿态检查：{data[:30]}...关心你的健康呢~"
+            return f"姿态检查：{data[:30]}...关心你的健康呢~船员，船长大人随时关注你的身体状况！"
     
     def _generate_dream_feedback(self, data: str, reason: str) -> str:
         """生成梦境的反馈"""
         dream_responses = [
-            f"🌙 我做了个梦：{data[:50]}...好神奇的梦境呢！",
-            f"💭 梦境分享：{data[:50]}...你觉得怎么样？",
-            f"✨ 刚才梦到：{data[:50]}...梦里的世界真有趣~"
+            f"🌙 本船长做了个梦：{data[:50]}...好神奇的梦境呢！船员，船长大人的想象力可是很丰富的~",
+            f"💭 梦境分享：{data[:50]}...船员，你觉得怎么样？本船长的梦境可是很有深度的！",
+            f"✨ 刚才梦到：{data[:50]}...梦里的世界真有趣~船员，船长大人连做梦都在冒险呢！"
         ]
         return random.choice(dream_responses)
     
     def _generate_screen_analysis_feedback(self, data: str, reason: str) -> str:
         """生成屏幕分析的反馈"""
         analysis_responses = [
-            f"我看到了：{data[:40]}...屏幕上的内容很丰富呢！",
-            f"屏幕分析：{data[:40]}...你在专心工作吗？",
-            f"观察结果：{data[:40]}...发现了很多有趣的东西！"
+            f"我看到了：{data[:40]}...屏幕上的内容很丰富呢！船员，本船长的观察力可是很强的~",
+            f"屏幕分析：{data[:40]}...你在专心工作吗？船员，船长大人随时关注你的工作状态！",
+            f"观察结果：{data[:40]}...发现了很多有趣的东西！船员，本船长的分析能力可是很准的~"
         ]
         return random.choice(analysis_responses)
     
     def _generate_work_summary_feedback(self, data: str, reason: str) -> str:
         """生成工作总结的反馈"""
         work_responses = [
-            f"工作总结：{data[:40]}...今天辛苦了！",
-            f"今日回顾：{data[:40]}...效率很高呢~",
-            f"工作报告：{data[:40]}...要记得休息哦！"
+            f"工作总结：{data[:40]}...今天辛苦了！船员，本船长为你感到骄傲~",
+            f"今日回顾：{data[:40]}...效率很高呢~船员，船长大人很满意你的表现！",
+            f"工作报告：{data[:40]}...要记得休息哦！船员，船长大人关心你的健康~"
         ]
         return random.choice(work_responses)
     
     def _generate_reminder_feedback(self, data: str, reason: str) -> str:
         """生成提醒的反馈"""
         reminder_responses = [
-            f"小提醒：{data[:40]}...关心你呢~",
-            f"友情提醒：{data[:40]}...别忘记哦！",
-            f"温馨提示：{data[:40]}...我一直在关注你！"
+            f"小提醒：{data[:40]}...关心你呢~船员，船长大人随时关注你！",
+            f"友情提醒：{data[:40]}...别忘记哦！船员，本船长可是很细心的~",
+            f"温馨提示：{data[:40]}...我一直在关注你！船员，船长大人永远是你的后盾~"
         ]
         return random.choice(reminder_responses)
     
     def _generate_generic_feedback(self, tool: str, data: str, reason: str) -> str:
         """生成通用工具反馈"""
         generic_responses = [
-            f"工具{tool}返回：{data[:40]}...学到了新东西！",
-            f"使用{tool}的结果：{data[:40]}...很有用呢~",
-            f"{tool}告诉我：{data[:40]}...原来如此！"
+            f"工具{tool}返回：{data[:40]}...学到了新东西！船员，本船长的学习能力可是很强的~",
+            f"使用{tool}的结果：{data[:40]}...很有用呢~船员，船长大人可是很聪明的！",
+            f"{tool}告诉我：{data[:40]}...原来如此！船员，本船长的知识面可是很广的~"
         ]
         return random.choice(generic_responses)
     
