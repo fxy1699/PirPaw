@@ -99,17 +99,19 @@ class ChatModule(BaseModule):
             # 暂时只使用qwen内置工具创建Agent，模块功能稍后集成
             all_tools = qwen_tools
 
-            all_tools.append({
-                "mcpServers": {
-                    "RedNote MCP": {
-                        "command": "npx",
-                        "args": [
-                            "rednote-mcp",
-                            "--stdio"
-                        ]
-                    }
-                }
-            })
+            # 注释掉可能引起问题的MCP配置
+            # all_tools.append({
+            #     "mcpServers": {
+            #         "RedNote MCP": {
+            #             "command": "npx",
+            #             "args": [
+            #                 "rednote-mcp",
+            #                 "--stdio"
+            #             ]
+            #         }
+            #     }
+            # })
+            
             # 创建Agent实例，集成所有工具
             self.agent = Assistant(
                 llm=llm_cfg,
@@ -121,12 +123,16 @@ class ChatModule(BaseModule):
             
             print(f"✅ {self.name} 初始化成功，已加载 {len(self.tools.tools) if self.tools else 0} 个工具")
             
-        except ImportError:
-            print("❌ 未安装qwen-agent，请运行: pip install qwen-agent")
+        except ImportError as e:
+            print(f"❌ 导入qwen-agent失败: {e}")
             print("🔄 启用本地模式...")
             self._setup_local_mode()
         except Exception as e:
             print(f"❌ {self.name} 初始化失败: {e}")
+            print(f"🔍 异常类型: {type(e).__name__}")
+            import traceback
+            print(f"🔍 详细错误信息:")
+            traceback.print_exc()
             print("🔄 启用本地模式...")
             self._setup_local_mode()
     
