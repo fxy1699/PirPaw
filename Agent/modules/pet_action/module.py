@@ -283,20 +283,20 @@ class PetActionModule(BaseModule):
         
         try:
             # 检查动作是否被当前宠物支持
-            if not self._check_action_supported(action_name):
-                # 尝试找到替代动作
-                alternative = self._find_alternative_action(action_name)
-                if alternative:
-                    return {
-                        "success": True,
-                        "message": f"✅ 当前宠物不支持 {action_name}，为您执行相似动作 {alternative} (置信度: {confidence:.1%})"
-                    }
-                else:
-                    available_actions = list(self.current_pet_info.get("actions", {}).keys())[:5]
-                    return {
-                        "success": False,
-                        "message": f"❌ 当前宠物{self.current_pet_name}不支持 {action_name} 动作。支持的动作：{', '.join(available_actions)}"
-                    }
+            # if not self._check_action_supported(action_name):
+            #     # 尝试找到替代动作
+            #     alternative = self._find_alternative_action(action_name)
+            #     if alternative:
+            #         return {
+            #             "success": True,
+            #             "message": f"✅ 当前宠物不支持 {action_name}，为您执行相似动作 {alternative} (置信度: {confidence:.1%})"
+            #         }
+            #     else:
+            #         available_actions = list(self.current_pet_info.get("actions", {}).keys())[:5]
+            #         return {
+            #             "success": False,
+            #             "message": f"❌ 当前宠物{self.current_pet_name}不支持 {action_name} 动作。支持的动作：{', '.join(available_actions)}"
+            #         }
             
             # 提交到动作执行器
             request_id = self.action_executor.execute_action(

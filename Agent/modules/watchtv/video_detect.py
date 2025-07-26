@@ -40,21 +40,21 @@ def is_window_visible_and_foreground(hwnd):
         pid, process_name, window_title = get_process_info_by_hwnd(hwnd)
         # 是否可见
         if not win32gui.IsWindowVisible(hwnd):
-            print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 不可见")
+            # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 不可见")
             return False
         # 是否最小化
         placement = win32gui.GetWindowPlacement(hwnd)
         if placement[1] == 2:  # 2 = 最小化
-            print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 已最小化")
+            # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 已最小化")
             return False
 
         # 获取目标窗口矩形
         rect = win32gui.GetWindowRect(hwnd)
         if rect[0] == rect[2] or rect[1] == rect[3]:
             # 无效窗口
-            print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 窗口矩形无效: {rect}")
+            # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 窗口矩形无效: {rect}")
             return False
-        print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 初步可见，窗口矩形: {rect}")
+        # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 初步可见，窗口矩形: {rect}")
 
         # 获取所有顶层窗口，按Z序从上到下
         hwnd_list = []
@@ -63,14 +63,14 @@ def is_window_visible_and_foreground(hwnd):
                 hwnd_list.append(h)
             return True
         win32gui.EnumWindows(enum_windows_callback, None)
-        print(f"[Debug][is_window_visible_and_foreground] Z序顶层窗口数量: {len(hwnd_list)}")
+        # print(f"[Debug][is_window_visible_and_foreground] Z序顶层窗口数量: {len(hwnd_list)}")
 
         # 目标窗口在Z序中的索引
         try:
             idx = hwnd_list.index(hwnd)
-            print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 在Z序中的索引: {idx}")
+            # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 在Z序中的索引: {idx}")
         except ValueError:
-            print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 不在顶层窗口列表中")
+            # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 不在顶层窗口列表中")
             return False
 
         # 检查目标窗口上方的所有可见窗口是否有完全遮挡
@@ -87,18 +87,19 @@ def is_window_visible_and_foreground(hwnd):
             l2, t2, r2, b2 = rect2
             pid2, process_name2, window_title2 = get_process_info_by_hwnd(h)
             if l2 <= l1 and t2 <= t1 and r2 >= r1 and b2 >= b1:
-                print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 被上方窗口 hwnd={h} pid={pid2} 进程名={process_name2} 窗口名={window_title2} 完全遮挡，遮挡窗口矩形: {rect2}")
+                # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 被上方窗口 hwnd={h} pid={pid2} 进程名={process_name2} 窗口名={window_title2} 完全遮挡，遮挡窗口矩形: {rect2}")
                 return False
             else:
                 # 输出部分遮挡信息
                 if not (r2 <= l1 or l2 >= r1 or b2 <= t1 or t2 >= b1):
-                    print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 被上方窗口 hwnd={h} pid={pid2} 进程名={process_name2} 窗口名={window_title2} 部分重叠，遮挡窗口矩形: {rect2}")
+                    # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 被上方窗口 hwnd={h} pid={pid2} 进程名={process_name2} 窗口名={window_title2} 部分重叠，遮挡窗口矩形: {rect2}")
+                    continue
 
         # 没有被完全遮挡，认为可见
-        print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 没有被完全遮挡，判定为可见")
+        # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} pid={pid} 进程名={process_name} 窗口名={window_title} 没有被完全遮挡，判定为可见")
         return True
     except Exception as e:
-        print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} 异常: {e}")
+        # print(f"[Debug][is_window_visible_and_foreground] hwnd={hwnd} 异常: {e}")
         return False
 
 class VideoPlaybackDetector:

@@ -265,7 +265,18 @@ class DyberPetBridge:
                     'leftwalk': '左右行走',
                     'rightwalk': '左右行走',
                     'left_walk': '左右行走',
-                    'right_walk': '左右行走'
+                    'right_walk': '左右行走',
+                    'watch_tv': '看电视',
+                    'breath': '呼吸',
+                    'default': '站立',
+                    'happy': '开心',
+                    'fall_asleep': '睡觉',
+                    'dream': '分享梦境',
+                    'eat_cake': '吃蛋糕',
+                    'eat_jelly': '吃水母',
+                    'eat_deadfinger': '吃死人手指',
+                    'rob': '打劫',
+                    'onfloor': 'onfloor'
                 }
                 
                 # 首先检查直接匹配
@@ -713,4 +724,4 @@ class MockDyberPetBridge(DyberPetBridge):
         """模拟切换宠物"""
         print(f"🎭 模拟切换宠物到: {pet_name}")
         self.current_pet_state.name = pet_name
-        return True 
+        return True
