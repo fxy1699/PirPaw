@@ -90,6 +90,16 @@ class DiaryManager:
                 )
             ''')
             
+            # 新增梦境记录表和相关操作方法
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS dream_diary (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    date TEXT,
+                    content TEXT,
+                    told_user BOOLEAN DEFAULT 0
+                )
+            ''')
+            
             conn.commit()
             print("✅ 日记数据库初始化完成")
     
@@ -221,7 +231,8 @@ class DiaryManager:
     
     def add_autonomous_behavior_entry(self, behavior_type: str, action_name: str, content: str, 
                                      trigger_reason: str = "", emotions_before: Dict = None, 
-                                     emotions_after: Dict = None, pet_name: str = None) -> int:
+                                     emotions_after: Dict = None, pet_name: str = None,
+                                     action_name_original: str = None) -> int:
         """添加自主行为记录"""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -239,8 +250,12 @@ class DiaryManager:
                     'tool_call': '🛠️'
                 }
                 
-                emoji = behavior_emoji.get(action_name, '🤖')
-                title = f"{emoji} 自主行为 - {action_name}"
+                emoji = behavior_emoji.get(action_name_original, '🤖')
+                # 如果是工具调用，则在标题中注明调用的工具名称
+                if action_name_original == 'tool_call' and content:
+                    title = f"{emoji} 自主行为 - 调用工具 - {content}"
+                else:
+                    title = f"{emoji} 自主行为 - {action_name}"
                 
                 # 构建详细内容
                 details = {
@@ -523,6 +538,30 @@ class DiaryManager:
         except Exception as e:
             print(f"⚠️ 创建缩略图失败: {e}")
             return None
+
+    def get_dream_by_date(self, date):
+        """根据日期获取梦境记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('SELECT content, told_user FROM dream_diary WHERE date=?', (date,))
+            row = cursor.fetchone()
+            if row:
+                return {'content': row[0], 'told_user': bool(row[1])}
+            return None
+
+    def save_dream(self, date, content):
+        """保存梦境记录"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('INSERT INTO dream_diary (date, content, told_user) VALUES (?, ?, 0)', (date, content))
+            conn.commit()
+
+    def mark_dream_told(self, date):
+        """标记梦境已讲过"""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute('UPDATE dream_diary SET told_user=1 WHERE date=?', (date,))
+            conn.commit()
 
 
 # 全局实例

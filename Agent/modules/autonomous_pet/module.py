@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 import os
 import sys
+import json
 
 # 导入基类
 from ...base_module import BaseModule
@@ -396,6 +397,7 @@ class AutonomousPetModule(BaseModule):
                     should_execute = True
                     print(f"⏰ 首次执行或时间未设置，立即开始思考...")
                 
+                # should_execute = True
                 if should_execute:
                     # 让大脑思考
                     action_plan = self.brain.think()
@@ -426,19 +428,25 @@ class AutonomousPetModule(BaseModule):
                                 if not behavior_content and 'message' in action_plan:
                                     behavior_content = action_plan['message']
                                 
+
                                 # 获取当前宠物名称
                                 pet_name = self._get_current_pet_name()
-                                
+
+                                # 将 action_plan 转换为更自然的中文描述
+                                natural_action_name, natural_content, natural_reason = self._convert_action_plan_to_natural_chinese(action_plan)
+
                                 diary_manager.add_autonomous_behavior_entry(
                                     behavior_type='proactive',
-                                    action_name=action_plan['action_type'],
-                                    content=behavior_content,
-                                    trigger_reason=action_plan.get('context', {}).get('dominant_emotion', '未知情绪驱动'),
+                                    action_name=natural_action_name,  # 使用自然中文名称
+                                    content=natural_content,  # 使用自然中文内容
+                                    trigger_reason=natural_reason,  # 使用自然中文原因
                                     emotions_before=emotions_before,
                                     emotions_after=emotions_after,
-                                    pet_name=pet_name
+                                    pet_name=pet_name,
+                                    action_name_original=action_plan['action_type']
                                 )
-                                print(f"📔 自主行为已记录到日记: {action_plan['action_type']}")
+                                print(f"[DEBUG] 自主行为全部内容：{action_plan}")
+                                print(f"📔 自主行为已记录到日记: {natural_action_name}")
                             except Exception as e:
                                 print(f"⚠️ 记录自主行为到日记失败: {e}")
                         
@@ -756,3 +764,130 @@ class AutonomousPetModule(BaseModule):
         if self.behavior_executor:
             self.behavior_executor.set_agent_core(self.agent_core)
             print("🎭 行为执行器已获得Agent核心引用，可以执行真实工具调用") 
+
+    def _convert_action_plan_to_natural_chinese(self, action_plan: Dict[str, Any]) -> tuple[str, str, str]:
+        """
+        将行为计划转换为更自然的中文描述。
+        例如：{'action_type': 'tool_call', 'tool': 'check_weather', 'reason': '强制测试工具调用'}
+        转换为：('工具调用', '检查天气', '强制测试工具调用')
+        """
+        action_type = action_plan.get('action_type', '未知行为')
+        content = action_plan.get('content', '')
+        reason = action_plan.get('reason', '')
+        context = action_plan.get('context', {})
+        
+        # 基础行为类型映射
+        action_type_mapping = {
+            'seek_attention': '寻求关注',
+            'self_talk': '自言自语',
+            'greet': '主动问候',
+            'care': '关怀用户',
+            'explore': '探索学习',
+            'rest': '休息放松',
+            'play': '玩耍娱乐',
+            'tool_call': '工具调用'
+        }
+        
+        natural_action_name = action_type_mapping.get(action_type, action_type)
+        
+        # 处理工具调用
+        if action_type == 'tool_call':
+            tool_name = action_plan.get('tool', '未知工具')
+            tool_mapping = {
+                'get_time': '查看时间',
+                'check_weather': '查看天气',
+                'remind_user': '提醒用户',
+                'learn_something': '学习新知识',
+                'check_system': '检查系统状态',
+                'pet_status': '查看宠物状态',
+                'get_usage_stats': '查看使用统计',
+                'take_screenshot': '截图',
+                'check_posture': '检查坐姿',
+                'analyze_screen': '分析屏幕',
+                'extract_text': '提取文字',
+                'analyze_image': '分析图像',
+                'switch_pet': '切换宠物',
+                'list_pets': '列出宠物',
+                'control_pet': '控制宠物动作',
+                'start_tracking': '开始追踪',
+                'stop_tracking': '停止追踪',
+                'tracking_status': '查看追踪状态',
+                'usage_report': '生成使用报告',
+                'check_health': '检查健康',
+                'check_fatigue': '检查疲劳',
+                'camera_status': '查看摄像头状态',
+                'take_photo': '拍照',
+                'work_summary': '工作总结'
+            }
+            
+            natural_content = tool_mapping.get(tool_name, f'调用工具: {tool_name}')
+            
+            # 根据上下文生成更自然的原因描述
+            dominant_emotion = context.get('dominant_emotion', '好奇')
+            emotion_descriptions = {
+                'happiness': '心情愉快',
+                'energy': '精力充沛',
+                'boredom': '感到无聊',
+                'curiosity': '好奇心驱使',
+                'loneliness': '感到孤独'
+            }
+            
+            emotion_desc = emotion_descriptions.get(dominant_emotion, '自主思考')
+            
+            # 时间上下文
+            hour = context.get('hour', 12)
+            time_context = ''
+            if 6 <= hour < 12:
+                time_context = '早上'
+            elif 12 <= hour < 18:
+                time_context = '下午'
+            elif 18 <= hour < 22:
+                time_context = '晚上'
+            else:
+                time_context = '深夜'
+            
+            natural_reason = f"{time_context}{emotion_desc}，主动{natural_content}"
+            
+        else:
+            # 处理社交行为
+            if content:
+                natural_content = content
+            else:
+                behavior_content_mapping = {
+                    'seek_attention': '主动寻求主人的关注和互动',
+                    'self_talk': '进行自我反思和思考',
+                    'greet': '向主人表达问候',
+                    'care': '表达对主人的关心',
+                    'explore': '探索新知识和信息',
+                    'rest': '进行休息和放松',
+                    'play': '邀请主人一起玩耍'
+                }
+                natural_content = behavior_content_mapping.get(action_type, f'执行{natural_action_name}行为')
+            
+            # 生成自然的原因描述
+            dominant_emotion = context.get('dominant_emotion', '好奇')
+            emotion_descriptions = {
+                'happiness': '心情愉快',
+                'energy': '精力充沛',
+                'boredom': '感到无聊',
+                'curiosity': '好奇心驱使',
+                'loneliness': '感到孤独'
+            }
+            
+            emotion_desc = emotion_descriptions.get(dominant_emotion, '自主思考')
+            
+            # 时间上下文
+            hour = context.get('hour', 12)
+            time_context = ''
+            if 6 <= hour < 12:
+                time_context = '早上'
+            elif 12 <= hour < 18:
+                time_context = '下午'
+            elif 18 <= hour < 22:
+                time_context = '晚上'
+            else:
+                time_context = '深夜'
+            
+            natural_reason = f"{time_context}{emotion_desc}，{natural_content}"
+        
+        return natural_action_name, natural_content, natural_reason 

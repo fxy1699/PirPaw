@@ -51,13 +51,8 @@ class DreamGenerationModule(BaseModule):
                 'medium': ['Introspective 内省的', 'Contemplative 沉思的', 'Reflective 反思的', 'Meditative 冥想的', 'Quiet 安静的'],
                 'low': ['Connected 连接的', 'Accompanied 有陪伴的', 'Social 社交的', 'Warm 温暖的', 'Embraced 被拥抱的']
             }
-        }
-        
-        # 尝试获取自主宠物模块的引用
-        self.autonomous_pet_module = None
-        
-        # 初始化AI代理（如果可用）
-        self.dream_bot = self._init_agent_service()
+        ]
+        # self.dream_bot = self._init_agent_service()
 
     def setup(self, config=None):
         """初始化模块"""
@@ -231,8 +226,8 @@ class DreamGenerationModule(BaseModule):
         print(f"[DEBUG] 梦境关键词：{keywords_str}")
         
         # 如果dream_bot不可用，使用简化模式
-        if not self.dream_bot:
-            return self._generate_simple_dream(keywords_str)
+        # if not self.dream_bot:
+        #     return self._generate_simple_dream(keywords_str)
         
         prompt = (
             f"请以以下心情为主题，创作一段有画面感的梦境场景或故事，要求细节丰富、情感饱满，富有想象力。\n"

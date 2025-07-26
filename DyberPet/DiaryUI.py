@@ -341,19 +341,8 @@ class DetailViewDialog(QDialog):
         trigger_reason = content.get('trigger_reason', '未知原因')
         behavior_content = content.get('content', '')
         
-        # 行为名称映射
-        action_names = {
-            'greet': '问候',
-            'play': '玩耍', 
-            'care': '关怀',
-            'seek_attention': '寻求关注',
-            'explore': '探索',
-            'rest': '休息',
-            'self_talk': '自言自语',
-            'tool_call': '工具调用'
-        }
-        
-        display_name = action_names.get(action_name, action_name)
+        # 现在 action_name 已经是自然化的中文，直接使用
+        display_name = action_name
         
         basic_layout.addWidget(QLabel("行为类型:"), 0, 0)
         basic_layout.addWidget(QLabel(f"🤖 {display_name}"), 0, 1)
@@ -724,19 +713,8 @@ class DiaryEntryWidget(QFrame):
         behavior_content = content.get('content', '')
         trigger_reason = content.get('trigger_reason', '未知原因')
         
-        # 行为名称映射
-        action_names = {
-            'greet': '问候',
-            'play': '玩耍', 
-            'care': '关怀',
-            'seek_attention': '寻求关注',
-            'explore': '探索',
-            'rest': '休息',
-            'self_talk': '自言自语',
-            'tool_call': '工具调用'
-        }
-        
-        display_name = action_names.get(action_name, action_name)
+        # 现在 action_name 已经是自然化的中文，直接使用
+        display_name = action_name
         
         behavior_text = f"🤖 {display_name}"
         if behavior_content:

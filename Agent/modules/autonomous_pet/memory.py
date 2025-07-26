@@ -88,6 +88,8 @@ class PetMemory:
                 last_updated DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+
+        
         
         conn.commit()
         conn.close()
