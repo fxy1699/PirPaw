@@ -98,7 +98,18 @@ class ChatModule(BaseModule):
             
             # 暂时只使用qwen内置工具创建Agent，模块功能稍后集成
             all_tools = qwen_tools
-            
+
+            all_tools.append({
+                "mcpServers": {
+                    "RedNote MCP": {
+                        "command": "npx",
+                        "args": [
+                            "rednote-mcp",
+                            "--stdio"
+                        ]
+                    }
+                }
+            })
             # 创建Agent实例，集成所有工具
             self.agent = Assistant(
                 llm=llm_cfg,
