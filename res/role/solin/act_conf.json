@@ -11,7 +11,8 @@
   },
   "down" : {
     "images": "fall",
-    "act_num": 1
+    "act_num": 1,
+    "frame_refresh": 0.5
   },
   "left": {
     "images": "walk",
@@ -26,7 +27,7 @@
   },
   "fall_asleep": {
     "images": "sleep",
-    "act_num": 1,
+    "act_num": 3,
     "frame_refresh": 0.5
   },
   "sleep": {
@@ -50,13 +51,14 @@
     "frame_refresh": 0.2
   },
   "drag": {
-    "images": "up",
-    "act_num": 2,
-    "frame_refresh": 0.3
+    "images": "breath",
+    "act_num": 8,
+    "frame_refresh": 0.4
   },
   "fall": {
     "images": "fall",
-    "act_num": 1
+    "act_num": 1,
+    "frame_refresh": 0.5
   },
   "onfloor": {
     "images": "breath",
