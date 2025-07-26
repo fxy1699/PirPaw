@@ -123,6 +123,8 @@ class DreamGenerationModule(BaseModule):
 
     def _send_dream_reminder(self, dream_content: str):
         """发送梦境提醒"""
+        import random
+        
         # 随机选择提醒话语
         reminder_messages = [
             "你昨天睡得怎么样呀？我昨天做了一个梦，我刚刚写在日记里了，吓死我了差点就忘了",
@@ -136,14 +138,31 @@ class DreamGenerationModule(BaseModule):
         
         selected_message = random.choice(reminder_messages)
         
-        # 发送消息给用户
+        # 使用 autonomous_pet 的 bubble_callback 发送气泡消息
         if hasattr(self, 'agent_core') and self.agent_core:
             try:
-                # 使用气泡或聊天界面发送消息
-                if hasattr(self.agent_core, 'send_bubble_message'):
-                    self.agent_core.send_bubble_message(selected_message)
+                # 查找自主宠物模块
+                autonomous_pet_module = None
+                for module in self.agent_core.modules:
+                    if hasattr(module, 'name') and '自主宠物' in module.name:
+                        autonomous_pet_module = module
+                        break
+                
+                if autonomous_pet_module and hasattr(autonomous_pet_module, '_trigger_bubble'):
+                    # 创建气泡字典
+                    bubble_dict = {
+                        'message': selected_message,
+                        'bubble_type': 'autonomous_dream',
+                        'icon': None,
+                        'start_audio': None,
+                        'end_audio': None
+                    }
+                    # 调用气泡回调
+                    autonomous_pet_module._trigger_bubble(bubble_dict)
+                    print(f"🎈 梦境提醒气泡已发送: {selected_message}")
                 elif hasattr(self.agent_core, 'add_bot_message'):
                     self.agent_core.add_bot_message(selected_message)
+                    print(f"💬 梦境提醒已发送到聊天界面: {selected_message}")
                 else:
                     print(f"🌙 梦境提醒: {selected_message}")
             except Exception as e:
@@ -156,19 +175,28 @@ class DreamGenerationModule(BaseModule):
         try:
             # 生成梦境
             # 调用 agent_core 的 process_message("你昨天做了什么梦")
-            dream_result = None
             if hasattr(self, 'agent_core') and self.agent_core:
                 try:
                     # process_message 可能是同步或异步，这里假设为同步
-                    dream_result = self.agent_core.process_message("你昨天做了什么梦")
+                    self.agent_core.process_message("你昨天做了什么梦")
                 except Exception as e:
                     print(f"❌ 调用 agent_core 生成梦境失败: {e}")
-                    dream_result = None
             else:
                 print("⚠️ agent_core 不可用，无法生成梦境")
                 dream_result = None
-
-            if dream_result and isinstance(dream_result, str):
+    
+            # 判断今日是否已经有梦境，如果有则说明生成成功
+            has_today_dream = False
+            try:
+                if self.diary_manager:
+                    today_dream = self.diary_manager.get_today_dream()
+                    if today_dream:
+                        has_today_dream = True
+            except Exception as e:
+                print(f"❌ 检查今日梦境失败: {e}")
+                has_today_dream = False
+    
+            if has_today_dream:
                 # 发送梦境提醒
                 reminder_messages = [
                     "我昨晚做了一个梦，已经写在日记里了，你要不要看看？",
@@ -183,10 +211,28 @@ class DreamGenerationModule(BaseModule):
                 # 发送消息给用户
                 if hasattr(self, 'agent_core') and self.agent_core:
                     try:
-                        if hasattr(self.agent_core, 'send_bubble_message'):
-                            self.agent_core.send_bubble_message(selected_message)
+                        # 查找自主宠物模块
+                        autonomous_pet_module = None
+                        for module in self.agent_core.modules:
+                            if hasattr(module, 'name') and '自主宠物' in module.name:
+                                autonomous_pet_module = module
+                                break
+                            
+                        if autonomous_pet_module and hasattr(autonomous_pet_module, '_trigger_bubble'):
+                            # 创建气泡字典
+                            bubble_dict = {
+                                'message': selected_message,
+                                'bubble_type': 'autonomous_dream',
+                                'icon': 'dream',  # 可以根据实际情况调整
+                                'start_audio': None,
+                                'end_audio': None
+                            }
+                            # 调用气泡回调
+                            autonomous_pet_module._trigger_bubble(bubble_dict)
+                            print(f"🎈 新梦境提醒气泡已发送: {selected_message}")
                         elif hasattr(self.agent_core, 'add_bot_message'):
                             self.agent_core.add_bot_message(selected_message)
+                            print(f"💬 新梦境提醒已发送到聊天界面: {selected_message}")
                         else:
                             print(f"🌙 新梦境提醒: {selected_message}")
                     except Exception as e:
@@ -409,7 +455,7 @@ class DreamGenerationModule(BaseModule):
         """简化模式：生成基础梦境文本"""
         # 预定义的梦境模板
         dream_templates = [
-            f"那天晚上，我做了一个梦。梦中我置身于一个充满{keywords_str}氛围的世界里。四周的景象让我感到深深的情感共鸣，仿佛整个世界都在诉说着内心的故事。",
+            f"那天晚上，我做了一个梦。梦中我身处于一个充满{keywords_str}氛围的世界里。四周的景象让我感到深深的情感共鸣，仿佛整个世界都在诉说着内心的故事。",
             f"在梦里，我经历了一段奇妙的旅程。{keywords_str}的情绪如影随形，让我在梦境中体验到了前所未有的感受。",
             f"我做了一个关于{keywords_str}的梦。梦中的场景如此真实，让我醒来后仍然沉浸在那份独特的情感中。"
         ]

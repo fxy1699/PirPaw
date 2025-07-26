@@ -982,9 +982,6 @@ class ChatModule(BaseModule):
         current_time = datetime.now()
         time_greeting = self._get_time_greeting(current_time)
         
-        # 使用英文时间格式
-        time_str = current_time.strftime('%Y-%m-%d %H:%M')
-        
         # 检查可用工具
         import os
         has_serper = os.getenv('SERPER_API_KEY') is not None
