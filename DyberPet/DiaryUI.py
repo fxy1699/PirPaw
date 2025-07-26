@@ -474,19 +474,19 @@ class DetailViewDialog(QDialog):
             
             layout.addWidget(original_group)
         
-        # AI回复组
-        if ai_response:
-            response_group = QGroupBox("🤖 AI原始回复")
-            response_layout = QVBoxLayout(response_group)
-            
-            response_text = QTextEdit()
-            response_text.setPlainText(ai_response)
-            response_text.setReadOnly(True)
-            response_text.setMaximumHeight(150)
-            response_text.setStyleSheet("background: #f0f8ff; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-family: 'Microsoft YaHei', sans-serif;")
-            response_layout.addWidget(response_text)
-            
-            layout.addWidget(response_group)
+        # 移除AI原始回复显示部分
+        # if ai_response:
+        #     response_group = QGroupBox("🤖 AI原始回复")
+        #     response_layout = QVBoxLayout(response_group)
+        #     
+        #     response_text = QTextEdit()
+        #     response_text.setPlainText(ai_response)
+        #     response_text.setReadOnly(True)
+        #     response_text.setMaximumHeight(150)
+        #     response_text.setStyleSheet("background: #f0f8ff; border: 1px solid #ddd; border-radius: 4px; padding: 8px; font-family: 'Microsoft YaHei', sans-serif;")
+        #     response_layout.addWidget(response_text)
+        #     
+        #     layout.addWidget(response_group)
     
     def _open_image_externally(self, file_path: str):
         """用系统默认程序打开图像"""

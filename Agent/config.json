@@ -69,10 +69,10 @@
       "personality": "看电视检测助手"
     },
     "autonomouspet": {
-      "autonomous_enabled": true,
+      "autonomous_enabled": false,
       "min_interval_minutes": 1,
       "max_interval_minutes": 5,
-      "debug_mode": true
+      "debug_mode": false
     }
   }
 } 
